@@ -10,21 +10,24 @@ const Login = () => {
         <div className="relative z-10 m-10 flex w-full flex-col justify-between rounded-[2.5rem] border border-white/40 bg-white/45 p-10 backdrop-blur-sm">
           <div>
             <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-blue-900">
-              EduTrack Campus
+              Smart Campus Operations
             </p>
             <h2 className="max-w-sm text-4xl font-extrabold leading-tight text-slate-900">
-              Manage attendance, schedules, and student life in one dashboard.
+              Book rooms and assets, track incidents, and close maintenance faster.
             </h2>
+            <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-600">
+              One platform for requests, approvals, technician updates, and verified resolutions with full audit history.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-xs uppercase text-gray-500">Daily check-ins</p>
-              <p className="mt-2 text-2xl font-extrabold text-blue-900">12.4k</p>
+              <p className="text-xs uppercase text-gray-500">Bookings today</p>
+              <p className="mt-2 text-2xl font-extrabold text-blue-900">426</p>
             </div>
             <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="text-xs uppercase text-gray-500">Courses active</p>
-              <p className="mt-2 text-2xl font-extrabold text-orange-500">218</p>
+              <p className="text-xs uppercase text-gray-500">Open incidents</p>
+              <p className="mt-2 text-2xl font-extrabold text-orange-500">38</p>
             </div>
           </div>
         </div>
@@ -45,8 +48,11 @@ const Login = () => {
               <input
                 id="email"
                 type="email"
-                placeholder="name@campus.edu"
+                placeholder="student@gmail.com"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none ring-orange-200 transition focus:ring-4"
+                pattern="^[A-Za-z0-9._%+-]+@gmail\.com$"
+                title="Use your @gmail.com email address"
+                required
               />
             </div>
 
@@ -55,9 +61,9 @@ const Login = () => {
                 <label className="block text-sm font-semibold text-slate-700" htmlFor="password">
                   Password
                 </label>
-                <button type="button" className="text-xs font-semibold text-blue-900 hover:underline">
+                <Link to="/forgot-password" className="text-xs font-semibold text-blue-900 hover:underline">
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <input
                 id="password"
@@ -75,7 +81,7 @@ const Login = () => {
               <span className="font-semibold text-slate-500">Secure login</span>
             </div>
 
-            <button className="w-full rounded-2xl bg-blue-900 py-3 font-bold text-white shadow-lg shadow-blue-900/30 transition hover:bg-blue-800">
+            <button className="water-button w-full rounded-2xl py-3 font-bold text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110">
               Login
             </button>
           </form>
