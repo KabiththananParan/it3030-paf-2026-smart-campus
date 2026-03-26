@@ -1,4 +1,5 @@
 import { Navigate, useNavigate } from 'react-router-dom'
+import logo from '../assets/edutrack.png'
 
 const taskCards = [
   { title: 'Room Booking Queue', items: '14 requests', progress: '92%', color: 'bg-violet-700', accent: 'bg-violet-200' },
@@ -38,8 +39,13 @@ const Dashboard = () => {
     <div className="h-screen w-screen overflow-hidden bg-[#f5efe8] p-2 sm:p-3 lg:p-4">
       <div className="grid h-full w-full gap-3 rounded-[2rem] bg-slate-50 p-3 shadow-2xl lg:grid-cols-[260px_minmax(0,1fr)_280px] lg:p-4">
         <aside className="overflow-auto rounded-[1.5rem] border border-slate-200 bg-white p-6">
-          <h2 className="text-2xl font-black text-slate-900">EduTrack</h2>
-          <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">Smart Campus</p>
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="EduTrack logo" className="h-10 w-10 rounded-xl object-cover shadow" />
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">EduTrack</h2>
+              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">Smart Campus</p>
+            </div>
+          </div>
 
           <div className="mt-8 rounded-2xl bg-gradient-to-br from-cyan-100 to-violet-100 p-4">
             <p className="text-xs uppercase text-slate-500">Logged in as</p>
@@ -62,6 +68,20 @@ const Dashboard = () => {
         </aside>
 
         <main className="overflow-auto rounded-[1.5rem] bg-white p-6">
+          <nav className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="EduTrack logo" className="h-9 w-9 rounded-lg object-cover" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">University Operations</p>
+                <p className="text-sm font-bold text-slate-800">Bookings, incidents, and audits in one place</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Notifications</button>
+              <button className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Quick Actions</button>
+            </div>
+          </nav>
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="text-3xl font-black text-slate-900">Hello, {userItNumber}</h1>
@@ -120,6 +140,20 @@ const Dashboard = () => {
               </div>
             </div>
           </section>
+
+          <footer className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div className="flex items-center gap-2 text-slate-600">
+                <img src={logo} alt="EduTrack logo" className="h-6 w-6 rounded object-cover" />
+                <span className="font-semibold">EduTrack Smart Campus</span>
+                <span>Copyright {new Date().getFullYear()}</span>
+              </div>
+              <div className="flex items-center gap-4 text-slate-500">
+                <span className="font-medium">Status: Operational</span>
+                <span>Version 1.0</span>
+              </div>
+            </div>
+          </footer>
         </main>
 
         <aside className="overflow-auto rounded-[1.5rem] border border-slate-200 bg-white p-6">
