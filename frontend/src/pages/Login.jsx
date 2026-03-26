@@ -1,6 +1,60 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 
 const Login = () => {
+  const navigate = useNavigate()
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  })
+  const [submitMessage, setSubmitMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setSubmitMessage('')
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setSubmitMessage(data.message || 'Login failed. Please check your credentials.')
+        return
+      }
+
+      const fallbackItNumber = localStorage.getItem('auth_it_number')
+      const resolvedItNumber = data.itNumber || data.itNo || fallbackItNumber || 'IT Number'
+
+      localStorage.setItem('auth_user', JSON.stringify({
+        email: data.email,
+        itNumber: resolvedItNumber,
+        itNo: resolvedItNumber,
+        fullName: data.fullName,
+        role: data.role,
+      }))
+
+      if (resolvedItNumber && resolvedItNumber !== 'IT Number') {
+        localStorage.setItem('auth_it_number', resolvedItNumber)
+      }
+      navigate('/dashboard', { replace: true })
+    } catch {
+      setSubmitMessage('Cannot connect to server. Please start backend and try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen w-full overflow-hidden bg-slate-50 font-sans">
       <div className="relative hidden w-1/2 overflow-hidden bg-orange-100 lg:flex">
@@ -40,7 +94,7 @@ const Login = () => {
             <p className="mt-2 text-sm text-slate-500">Login to continue to your smart campus account.</p>
           </div>
 
-          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-5" onSubmit={handleSubmit} noValidate>
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-700" htmlFor="email">
                 Email
@@ -53,6 +107,8 @@ const Login = () => {
                 pattern="^[A-Za-z0-9._%+-]+@gmail\.com$"
                 title="Use your @gmail.com email address"
                 required
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
               />
             </div>
 
@@ -70,6 +126,9 @@ const Login = () => {
                 type="password"
                 placeholder="Enter your password"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none ring-orange-200 transition focus:ring-4"
+                required
+                value={formData.password}
+                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
               />
             </div>
 
@@ -81,9 +140,11 @@ const Login = () => {
               <span className="font-semibold text-slate-500">Secure login</span>
             </div>
 
-            <button className="water-button w-full rounded-2xl py-3 font-bold text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110">
-              Login
+            <button disabled={isSubmitting} className="water-button w-full rounded-2xl py-3 font-bold text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110">
+              {isSubmitting ? 'Logging in...' : 'Login'}
             </button>
+
+            {submitMessage ? <p className="text-sm text-red-500">{submitMessage}</p> : null}
           </form>
 
           <div className="mt-8 text-center text-sm text-slate-600">

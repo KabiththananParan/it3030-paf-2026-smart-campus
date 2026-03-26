@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 
 const initialForm = {
@@ -13,10 +13,12 @@ const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/
 const itNumberRegex = /^IT\d{8}$/
 
 const SignUp = () => {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
   const [submitMessage, setSubmitMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const passwordChecks = {
     minLength: formData.password.length >= 8,
@@ -128,7 +130,7 @@ const SignUp = () => {
     }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
     const nextErrors = validateAll(formData)
@@ -147,7 +149,36 @@ const SignUp = () => {
       return
     }
 
-    setSubmitMessage('Validation passed. Account is ready to be created.')
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('http://localhost:8080/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: formData.name.trim(),
+          itNumber: formData.itNumber.trim().toUpperCase(),
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setSubmitMessage(data.message || 'Signup failed. Please try again.')
+        return
+      }
+
+      localStorage.setItem('auth_it_number', formData.itNumber.trim().toUpperCase())
+      setSubmitMessage('Signup successful. Redirecting to login...')
+      setTimeout(() => navigate('/login', { replace: true }), 800)
+    } catch {
+      setSubmitMessage('Cannot connect to server. Please start backend and try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const isFieldValid = (fieldName) => touched[fieldName] && !errors[fieldName] && formData[fieldName]
@@ -300,9 +331,10 @@ const SignUp = () => {
             <div className="pt-4">
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="water-button flex w-48 items-center justify-between rounded-full px-8 py-3 font-semibold text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110"
               >
-                Sign Up
+                {isSubmitting ? 'Signing Up...' : 'Sign Up'}
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
