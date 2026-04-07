@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { approveBooking, getBookings, rejectBooking } from '../api/bookingApi.js'
 
@@ -23,9 +23,12 @@ const BookingApprovalPage = () => {
     }
   }, [isAdmin])
 
-  useMemo(() => {
+  useEffect(() => {
     if (isAdmin) {
-      void loadPending()
+      const timer = setTimeout(() => {
+        void loadPending()
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [isAdmin, loadPending])
 
@@ -87,6 +90,12 @@ const BookingApprovalPage = () => {
               </div>
             </div>
           ))}
+
+          {pendingBookings.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+              No pending requests right now.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

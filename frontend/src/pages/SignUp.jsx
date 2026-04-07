@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import logo from '../assets/edutrack.png'
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
+
 const initialForm = {
   name: '',
   itNumber: '',
@@ -152,7 +154,7 @@ const SignUp = () => {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch('http://localhost:8080/api/auth/signup', {
+      const response = await fetch(`${API_BASE}/api/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

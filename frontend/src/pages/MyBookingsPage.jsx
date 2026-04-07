@@ -1,12 +1,35 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { cancelBooking, getMyBookings, updateBooking } from '../api/bookingApi.js'
+import {
+  cancelBooking,
+  deleteBooking,
+  getMyBookingSummary,
+  getMyBookings,
+  getMyUpcomingBookings,
+  updateBooking,
+} from '../api/bookingApi.js'
+
+const editableStatuses = ['PENDING']
+
+const statusBadge = {
+  PENDING: 'bg-amber-100 text-amber-800',
+  APPROVED: 'bg-emerald-100 text-emerald-800',
+  REJECTED: 'bg-rose-100 text-rose-800',
+  CANCELLED: 'bg-slate-200 text-slate-700',
+}
 
 const MyBookingsPage = () => {
   const savedUser = localStorage.getItem('auth_user')
   const [bookings, setBookings] = useState([])
+  const [upcoming, setUpcoming] = useState([])
+  const [summary, setSummary] = useState(null)
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
   const user = useMemo(() => (savedUser ? JSON.parse(savedUser) : null), [savedUser])
 
   const loadBookings = useCallback(async () => {
@@ -15,22 +38,28 @@ const MyBookingsPage = () => {
     }
 
     try {
-      const data = await getMyBookings(user.email)
-      setBookings(data)
+      setLoading(true)
+      setError('')
+      const [allBookings, upcomingBookings, summaryData] = await Promise.all([
+        getMyBookings(user.email),
+        getMyUpcomingBookings(user.email, 14),
+        getMyBookingSummary(user.email),
+      ])
+      setBookings(allBookings)
+      setUpcoming(upcomingBookings)
+      setSummary(summaryData)
     } catch (loadError) {
       setError(loadError.message)
+    } finally {
+      setLoading(false)
     }
   }, [user])
 
-  useMemo(() => {
+  useEffect(() => {
     if (user) {
       void loadBookings()
     }
   }, [loadBookings, user])
-
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
 
   const onCancel = async (id) => {
     setError('')
@@ -38,32 +67,69 @@ const MyBookingsPage = () => {
     try {
       await cancelBooking(id, user.email)
       setMessage('Booking cancelled successfully.')
-      loadBookings()
+      void loadBookings()
     } catch (cancelError) {
       setError(cancelError.message)
     }
   }
 
-  const onUpdate = async (booking) => {
-    const purpose = window.prompt('Update purpose', booking.purpose)
-    if (!purpose) {
+  const onEditClick = (booking) => {
+    setEditingId(booking.id)
+    setEditForm({
+      resourceType: booking.resourceType,
+      resourceName: booking.resourceName,
+      purpose: booking.purpose,
+      bookingDate: booking.bookingDate,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    })
+  }
+
+  const onEditSave = async () => {
+    if (!editingId || !editForm) {
       return
     }
 
     try {
-      await updateBooking(booking.id, user.email, {
-        resourceType: booking.resourceType,
-        resourceName: booking.resourceName,
-        purpose,
-        bookingDate: booking.bookingDate,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-      })
+      await updateBooking(editingId, user.email, editForm)
       setMessage('Booking updated successfully.')
-      loadBookings()
+      setEditingId(null)
+      setEditForm(null)
+      void loadBookings()
     } catch (updateError) {
       setError(updateError.message)
     }
+  }
+
+  const onDelete = async (id) => {
+    setError('')
+    setMessage('')
+
+    try {
+      await deleteBooking(id, user.email)
+      setMessage('Booking deleted successfully.')
+      void loadBookings()
+    } catch (deleteError) {
+      setError(deleteError.message)
+    }
+  }
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      const matchesStatus = statusFilter === 'ALL' || booking.status === statusFilter
+      const search = query.trim().toLowerCase()
+      const matchesQuery =
+        search.length === 0 ||
+        booking.resourceName.toLowerCase().includes(search) ||
+        booking.purpose.toLowerCase().includes(search) ||
+        booking.bookingDate.includes(search)
+
+      return matchesStatus && matchesQuery
+    })
+  }, [bookings, query, statusFilter])
+
+  if (!user) {
+    return <Navigate to="/login" replace />
   }
 
   return (
@@ -81,26 +147,142 @@ const MyBookingsPage = () => {
         {message ? <p className="mb-3 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="mb-3 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
 
+        {summary ? (
+          <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+            <div className="rounded-xl bg-slate-100 p-3 text-center"><p className="text-xs text-slate-500">Total</p><p className="text-lg font-bold text-slate-900">{summary.total}</p></div>
+            <div className="rounded-xl bg-amber-100 p-3 text-center"><p className="text-xs text-amber-700">Pending</p><p className="text-lg font-bold text-amber-900">{summary.pending}</p></div>
+            <div className="rounded-xl bg-emerald-100 p-3 text-center"><p className="text-xs text-emerald-700">Approved</p><p className="text-lg font-bold text-emerald-900">{summary.approved}</p></div>
+            <div className="rounded-xl bg-rose-100 p-3 text-center"><p className="text-xs text-rose-700">Rejected</p><p className="text-lg font-bold text-rose-900">{summary.rejected}</p></div>
+            <div className="rounded-xl bg-slate-200 p-3 text-center"><p className="text-xs text-slate-600">Cancelled</p><p className="text-lg font-bold text-slate-800">{summary.cancelled}</p></div>
+            <div className="rounded-xl bg-cyan-100 p-3 text-center"><p className="text-xs text-cyan-700">Checked In</p><p className="text-lg font-bold text-cyan-900">{summary.checkedIn}</p></div>
+            <div className="rounded-xl bg-indigo-100 p-3 text-center"><p className="text-xs text-indigo-700">Upcoming</p><p className="text-lg font-bold text-indigo-900">{summary.upcoming}</p></div>
+            <div className="rounded-xl bg-violet-100 p-3 text-center"><p className="text-xs text-violet-700">Next Date</p><p className="text-sm font-bold text-violet-900">{summary.nextBookingDate || 'N/A'}</p></div>
+          </div>
+        ) : null}
+
+        <div className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by resource, purpose, or date"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          />
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="ALL">All statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+          <button
+            onClick={() => void loadBookings()}
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {upcoming.length > 0 ? (
+          <div className="mb-5 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+            <p className="text-sm font-semibold text-indigo-900">Upcoming (next 14 days)</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {upcoming.slice(0, 4).map((item) => (
+                <span key={item.id} className="rounded-lg bg-white px-3 py-1 text-xs text-indigo-900 ring-1 ring-indigo-200">
+                  {item.bookingDate} {item.startTime} {item.resourceName}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="space-y-3">
-          {bookings.map((booking) => (
+          {loading ? <p className="text-sm text-slate-500">Loading bookings...</p> : null}
+
+          {filteredBookings.map((booking) => (
             <div key={booking.id} className="rounded-xl border border-slate-200 p-4">
-              <p className="font-bold text-slate-900">{booking.resourceName} <span className="ml-2 text-xs font-semibold text-slate-500">{booking.status}</span></p>
+              <p className="font-bold text-slate-900">
+                {booking.resourceName}
+                <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge[booking.status] || 'bg-slate-100 text-slate-700'}`}>
+                  {booking.status}
+                </span>
+              </p>
               <p className="text-sm text-slate-600">{booking.bookingDate} | {booking.startTime} - {booking.endTime}</p>
               <p className="text-sm text-slate-700">{booking.purpose}</p>
 
               <div className="mt-3 flex gap-2">
-                {booking.status === 'PENDING' ? (
-                  <button onClick={() => onUpdate(booking)} className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold">Update</button>
+                {editableStatuses.includes(booking.status) ? (
+                  <button onClick={() => onEditClick(booking)} className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold">Edit</button>
                 ) : null}
                 {(booking.status === 'PENDING' || booking.status === 'APPROVED') ? (
                   <button onClick={() => onCancel(booking.id)} className="rounded-lg border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700">Cancel</button>
+                ) : null}
+                {(booking.status === 'REJECTED' || booking.status === 'CANCELLED') ? (
+                  <button onClick={() => onDelete(booking.id)} className="rounded-lg border border-slate-400 px-3 py-1 text-xs font-semibold text-slate-700">Delete</button>
                 ) : null}
                 {booking.status === 'APPROVED' && booking.qrToken ? (
                   <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">QR Token: {booking.qrToken.slice(0, 8)}...</span>
                 ) : null}
               </div>
+
+              {editingId === booking.id && editForm ? (
+                <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+                  <input
+                    value={editForm.resourceName}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, resourceName: event.target.value }))}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Resource"
+                  />
+                  <input
+                    value={editForm.resourceType}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, resourceType: event.target.value }))}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Type"
+                  />
+                  <input
+                    type="date"
+                    value={editForm.bookingDate}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, bookingDate: event.target.value }))}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="time"
+                      value={editForm.startTime}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, startTime: event.target.value }))}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="time"
+                      value={editForm.endTime}
+                      onChange={(event) => setEditForm((prev) => ({ ...prev, endTime: event.target.value }))}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <textarea
+                    value={editForm.purpose}
+                    onChange={(event) => setEditForm((prev) => ({ ...prev, purpose: event.target.value }))}
+                    rows={2}
+                    className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Purpose"
+                  />
+                  <div className="sm:col-span-2 flex gap-2">
+                    <button onClick={onEditSave} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">Save</button>
+                    <button onClick={() => { setEditingId(null); setEditForm(null) }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold">Close</button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ))}
+
+          {!loading && filteredBookings.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+              No bookings found for your current filters.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ package com.edutrack.backend.booking.service;
 import com.edutrack.backend.booking.dto.AdminDecisionRequest;
 import com.edutrack.backend.booking.dto.BookingBatchResponse;
 import com.edutrack.backend.booking.dto.BookingResponse;
+import com.edutrack.backend.booking.dto.BookingSummaryResponse;
 import com.edutrack.backend.booking.dto.CreateBookingRequest;
 import com.edutrack.backend.booking.dto.UpdateBookingRequest;
 import com.edutrack.backend.booking.entity.Booking;
@@ -84,6 +85,64 @@ public class BookingService {
                 .stream()
                 .map(BookingResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<BookingResponse> getMyUpcomingBookings(String requesterEmail, int days) {
+        String normalizedEmail = normalizeEmail(requesterEmail);
+        int clampedDays = Math.max(1, Math.min(days, 60));
+        LocalDate from = LocalDate.now();
+        LocalDate to = from.plusDays(clampedDays);
+
+        return bookingRepository
+                .findByRequesterEmailIgnoreCaseAndStatusInAndBookingDateBetweenOrderByBookingDateAscStartTimeAsc(
+                        normalizedEmail,
+                        ACTIVE_BOOKING_STATUSES,
+                        from,
+                        to)
+                .stream()
+                .map(BookingResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public BookingSummaryResponse getMyBookingSummary(String requesterEmail) {
+        String normalizedEmail = normalizeEmail(requesterEmail);
+
+        long total = bookingRepository.countByRequesterEmailIgnoreCase(normalizedEmail);
+        long pending = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
+                BookingStatus.PENDING);
+        long approved = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
+                BookingStatus.APPROVED);
+        long rejected = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
+                BookingStatus.REJECTED);
+        long cancelled = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
+                BookingStatus.CANCELLED);
+        long checkedIn = bookingRepository.countByRequesterEmailIgnoreCaseAndCheckedInTrue(normalizedEmail);
+
+        LocalDate today = LocalDate.now();
+        long upcoming = bookingRepository
+                .findByRequesterEmailIgnoreCaseAndStatusInAndBookingDateBetweenOrderByBookingDateAscStartTimeAsc(
+                        normalizedEmail,
+                        ACTIVE_BOOKING_STATUSES,
+                        today,
+                        today.plusDays(14))
+                .size();
+
+        Booking next = bookingRepository
+                .findTopByRequesterEmailIgnoreCaseAndBookingDateGreaterThanEqualOrderByBookingDateAscStartTimeAsc(
+                        normalizedEmail,
+                        today);
+
+        return new BookingSummaryResponse(
+                total,
+                pending,
+                approved,
+                rejected,
+                cancelled,
+                checkedIn,
+                upcoming,
+                next == null ? null : next.getBookingDate());
     }
 
     @Transactional(readOnly = true)
@@ -213,6 +272,18 @@ public class BookingService {
 
         Booking saved = bookingRepository.save(booking);
         return BookingResponse.from(saved);
+    }
+
+    @Transactional
+    public void deleteBooking(Long id, String requesterEmail) {
+        Booking booking = findBookingOrThrow(id);
+        verifyOwnership(booking, requesterEmail);
+
+        if (booking.getStatus() == BookingStatus.PENDING || booking.getStatus() == BookingStatus.APPROVED) {
+            throw new BookingException("Active bookings cannot be deleted. Cancel it first.", HttpStatus.CONFLICT);
+        }
+
+        bookingRepository.delete(booking);
     }
 
     @Transactional(readOnly = true)

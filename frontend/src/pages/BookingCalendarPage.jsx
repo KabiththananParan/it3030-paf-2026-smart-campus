@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { checkInBooking, getCalendarBookings } from '../api/bookingApi.js'
 
@@ -25,9 +25,12 @@ const BookingCalendarPage = () => {
     }
   }, [isAdmin, user])
 
-  useMemo(() => {
+  useEffect(() => {
     if (user) {
-      void loadCalendar()
+      const timer = setTimeout(() => {
+        void loadCalendar()
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [loadCalendar, user])
 
@@ -93,6 +96,12 @@ const BookingCalendarPage = () => {
               </div>
             </div>
           ))}
+
+          {Object.keys(grouped).length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+              No bookings available in the selected range.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

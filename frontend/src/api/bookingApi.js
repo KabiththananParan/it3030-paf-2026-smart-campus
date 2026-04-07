@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080/api/bookings'
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'}/api/bookings`
 
 const parseResponse = async (response) => {
   const data = await response.json().catch(() => null)
@@ -25,6 +25,24 @@ export const createBooking = async (payload) => {
 export const getMyBookings = async (email) => {
   const query = new URLSearchParams({ email })
   const response = await fetch(`${API_BASE}/my?${query.toString()}`, {
+    method: 'GET',
+  })
+
+  return parseResponse(response)
+}
+
+export const getMyUpcomingBookings = async (email, days = 14) => {
+  const query = new URLSearchParams({ email, days: String(days) })
+  const response = await fetch(`${API_BASE}/my/upcoming?${query.toString()}`, {
+    method: 'GET',
+  })
+
+  return parseResponse(response)
+}
+
+export const getMyBookingSummary = async (email) => {
+  const query = new URLSearchParams({ email })
+  const response = await fetch(`${API_BASE}/my/summary?${query.toString()}`, {
     method: 'GET',
   })
 
@@ -99,6 +117,15 @@ export const cancelBooking = async (id, email) => {
   const query = new URLSearchParams({ email })
   const response = await fetch(`${API_BASE}/${id}/cancel?${query.toString()}`, {
     method: 'PATCH',
+  })
+
+  return parseResponse(response)
+}
+
+export const deleteBooking = async (id, email) => {
+  const query = new URLSearchParams({ email })
+  const response = await fetch(`${API_BASE}/${id}?${query.toString()}`, {
+    method: 'DELETE',
   })
 
   return parseResponse(response)

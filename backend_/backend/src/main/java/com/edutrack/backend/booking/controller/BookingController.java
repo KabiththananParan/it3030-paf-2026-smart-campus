@@ -3,6 +3,7 @@ package com.edutrack.backend.booking.controller;
 import com.edutrack.backend.booking.dto.AdminDecisionRequest;
 import com.edutrack.backend.booking.dto.BookingBatchResponse;
 import com.edutrack.backend.booking.dto.BookingResponse;
+import com.edutrack.backend.booking.dto.BookingSummaryResponse;
 import com.edutrack.backend.booking.dto.CreateBookingRequest;
 import com.edutrack.backend.booking.dto.UpdateBookingRequest;
 import com.edutrack.backend.booking.enums.BookingStatus;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +44,18 @@ public class BookingController {
     @GetMapping("/my")
     public ResponseEntity<List<BookingResponse>> getMyBookings(@RequestParam String email) {
         return ResponseEntity.ok(bookingService.getMyBookings(email));
+    }
+
+    @GetMapping("/my/upcoming")
+    public ResponseEntity<List<BookingResponse>> getMyUpcomingBookings(
+            @RequestParam String email,
+            @RequestParam(defaultValue = "14") int days) {
+        return ResponseEntity.ok(bookingService.getMyUpcomingBookings(email, days));
+    }
+
+    @GetMapping("/my/summary")
+    public ResponseEntity<BookingSummaryResponse> getMyBookingSummary(@RequestParam String email) {
+        return ResponseEntity.ok(bookingService.getMyBookingSummary(email));
     }
 
     @GetMapping
@@ -96,6 +110,14 @@ public class BookingController {
             @RequestParam String email) {
         BookingResponse updated = bookingService.cancelBooking(id, email);
         return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteBooking(
+            @PathVariable Long id,
+            @RequestParam String email) {
+        bookingService.deleteBooking(id, email);
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/check-in")

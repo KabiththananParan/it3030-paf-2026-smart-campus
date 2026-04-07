@@ -25,6 +25,22 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                         LocalDate from,
                         LocalDate to);
 
+        List<Booking> findByRequesterEmailIgnoreCaseAndStatusInAndBookingDateBetweenOrderByBookingDateAscStartTimeAsc(
+                        String requesterEmail,
+                        List<BookingStatus> statuses,
+                        LocalDate from,
+                        LocalDate to);
+
+        long countByRequesterEmailIgnoreCase(String requesterEmail);
+
+        long countByRequesterEmailIgnoreCaseAndStatus(String requesterEmail, BookingStatus status);
+
+        long countByRequesterEmailIgnoreCaseAndCheckedInTrue(String requesterEmail);
+
+        Booking findTopByRequesterEmailIgnoreCaseAndBookingDateGreaterThanEqualOrderByBookingDateAscStartTimeAsc(
+                        String requesterEmail,
+                        LocalDate fromDate);
+
         @Query("""
                         SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
                         FROM Booking b
