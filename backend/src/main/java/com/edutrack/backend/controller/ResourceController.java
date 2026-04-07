@@ -30,12 +30,12 @@ public class ResourceController {
         return resourceService.getResourceById(id);
     }
 
-    @PutMapping("/update/{id}")
+    @PutMapping("/{id}")
     public Resource updateResource(@PathVariable Long id, @Valid @RequestBody Resource details) {
         return resourceService.updateResource(id, details);
     }
 
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/{id}")
     public String delete(@PathVariable Long id) {
         resourceService.deleteResource(id);
         return "Deleted successfully";
