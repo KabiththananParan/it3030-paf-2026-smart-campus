@@ -11,11 +11,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Disable CSRF for Postman testing
+                .csrf(csrf -> csrf.disable()) // Disables CSRF so Postman works
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll() // Allow all API calls without a password
+                        .anyRequest().permitAll() // Allows all requests without a password
                 );
         return http.build();
     }
