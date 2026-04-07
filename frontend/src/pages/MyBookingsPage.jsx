@@ -148,7 +148,7 @@ const MyBookingsPage = () => {
         {error ? <p className="mb-3 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
 
         {summary ? (
-          <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+          <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-10">
             <div className="rounded-xl bg-slate-100 p-3 text-center"><p className="text-xs text-slate-500">Total</p><p className="text-lg font-bold text-slate-900">{summary.total}</p></div>
             <div className="rounded-xl bg-amber-100 p-3 text-center"><p className="text-xs text-amber-700">Pending</p><p className="text-lg font-bold text-amber-900">{summary.pending}</p></div>
             <div className="rounded-xl bg-emerald-100 p-3 text-center"><p className="text-xs text-emerald-700">Approved</p><p className="text-lg font-bold text-emerald-900">{summary.approved}</p></div>
@@ -157,6 +157,8 @@ const MyBookingsPage = () => {
             <div className="rounded-xl bg-cyan-100 p-3 text-center"><p className="text-xs text-cyan-700">Checked In</p><p className="text-lg font-bold text-cyan-900">{summary.checkedIn}</p></div>
             <div className="rounded-xl bg-indigo-100 p-3 text-center"><p className="text-xs text-indigo-700">Upcoming</p><p className="text-lg font-bold text-indigo-900">{summary.upcoming}</p></div>
             <div className="rounded-xl bg-violet-100 p-3 text-center"><p className="text-xs text-violet-700">Next Date</p><p className="text-sm font-bold text-violet-900">{summary.nextBookingDate || 'N/A'}</p></div>
+            <div className="rounded-xl bg-sky-100 p-3 text-center"><p className="text-xs text-sky-700">Peak Hour</p><p className="text-sm font-bold text-sky-900">{summary.peakHour || 'N/A'}</p></div>
+            <div className="rounded-xl bg-lime-100 p-3 text-center"><p className="text-xs text-lime-700">Top Resource</p><p className="text-sm font-bold text-lime-900">{summary.mostUsedResource || 'N/A'}</p></div>
           </div>
         ) : null}
 

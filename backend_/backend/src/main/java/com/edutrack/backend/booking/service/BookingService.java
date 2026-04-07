@@ -21,7 +21,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class BookingService {
@@ -108,17 +110,15 @@ public class BookingService {
     @Transactional(readOnly = true)
     public BookingSummaryResponse getMyBookingSummary(String requesterEmail) {
         String normalizedEmail = normalizeEmail(requesterEmail);
+        List<Booking> bookings = bookingRepository
+                .findByRequesterEmailIgnoreCaseOrderByBookingDateAscStartTimeAsc(normalizedEmail);
 
-        long total = bookingRepository.countByRequesterEmailIgnoreCase(normalizedEmail);
-        long pending = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
-                BookingStatus.PENDING);
-        long approved = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
-                BookingStatus.APPROVED);
-        long rejected = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
-                BookingStatus.REJECTED);
-        long cancelled = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(normalizedEmail,
-                BookingStatus.CANCELLED);
-        long checkedIn = bookingRepository.countByRequesterEmailIgnoreCaseAndCheckedInTrue(normalizedEmail);
+        long total = bookings.size();
+        long pending = bookings.stream().filter(booking -> booking.getStatus() == BookingStatus.PENDING).count();
+        long approved = bookings.stream().filter(booking -> booking.getStatus() == BookingStatus.APPROVED).count();
+        long rejected = bookings.stream().filter(booking -> booking.getStatus() == BookingStatus.REJECTED).count();
+        long cancelled = bookings.stream().filter(booking -> booking.getStatus() == BookingStatus.CANCELLED).count();
+        long checkedIn = bookings.stream().filter(Booking::isCheckedIn).count();
 
         LocalDate today = LocalDate.now();
         long upcoming = bookingRepository
@@ -134,6 +134,25 @@ public class BookingService {
                         normalizedEmail,
                         today);
 
+        String peakHour = bookings.isEmpty()
+                ? null
+                : bookings.stream()
+                        .collect(Collectors.groupingBy(booking -> booking.getStartTime().getHour(),
+                                Collectors.counting()))
+                        .entrySet().stream()
+                        .max(Map.Entry.comparingByValue())
+                        .map(entry -> String.format("%02d:00", entry.getKey()))
+                        .orElse(null);
+
+        String mostUsedResource = bookings.isEmpty()
+                ? null
+                : bookings.stream()
+                        .collect(Collectors.groupingBy(Booking::getResourceName, Collectors.counting()))
+                        .entrySet().stream()
+                        .max(Map.Entry.comparingByValue())
+                        .map(Map.Entry::getKey)
+                        .orElse(null);
+
         return new BookingSummaryResponse(
                 total,
                 pending,
@@ -142,7 +161,9 @@ public class BookingService {
                 cancelled,
                 checkedIn,
                 upcoming,
-                next == null ? null : next.getBookingDate());
+                next == null ? null : next.getBookingDate(),
+                peakHour,
+                mostUsedResource);
     }
 
     @Transactional(readOnly = true)

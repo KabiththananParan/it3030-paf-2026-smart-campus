@@ -10,5 +10,7 @@ public record BookingSummaryResponse(
         long cancelled,
         long checkedIn,
         long upcoming,
-        LocalDate nextBookingDate) {
+        LocalDate nextBookingDate,
+        String peakHour,
+        String mostUsedResource) {
 }
