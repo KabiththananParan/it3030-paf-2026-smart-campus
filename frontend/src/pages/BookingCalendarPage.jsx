@@ -75,8 +75,8 @@ const BookingCalendarPage = () => {
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-black text-slate-900">Booking Calendar</h1>
           <div className="flex gap-2 text-sm">
-            <Link to="/bookings/form" className="rounded-lg border border-slate-300 px-3 py-1.5">New Booking</Link>
-            <Link to="/bookings/my" className="rounded-lg border border-slate-300 px-3 py-1.5">My Bookings</Link>
+            {!isAdmin ? <Link to="/bookings/form" className="rounded-lg border border-slate-300 px-3 py-1.5">New Booking</Link> : null}
+            {!isAdmin ? <Link to="/bookings/my" className="rounded-lg border border-slate-300 px-3 py-1.5">My Bookings</Link> : null}
             {isAdmin ? <Link to="/bookings/approval" className="rounded-lg border border-slate-300 px-3 py-1.5">Approvals</Link> : null}
           </div>
         </div>

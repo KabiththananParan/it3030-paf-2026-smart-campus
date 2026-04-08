@@ -43,12 +43,41 @@ const BookingQrDetailsPage = () => {
     void load()
   }, [token])
 
+  const escapeHtml = (value) => {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;')
+  }
+
   const onDownloadPdf = async () => {
     if (!booking) {
       return
     }
 
     try {
+      const appBase = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin
+      const scanUrl = `${appBase}/bookings/scan/${encodeURIComponent(booking.qrToken || token || '')}`
+      const qrPreviewUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(scanUrl)}`
+
+      const safe = {
+        id: escapeHtml(booking.id),
+        requesterName: escapeHtml(booking.requesterName),
+        requesterEmail: escapeHtml(booking.requesterEmail),
+        requesterItNumber: escapeHtml(booking.requesterItNumber),
+        resourceType: escapeHtml(booking.resourceType),
+        resourceName: escapeHtml(booking.resourceName),
+        bookingDate: escapeHtml(booking.bookingDate),
+        startTime: escapeHtml(booking.startTime),
+        endTime: escapeHtml(booking.endTime),
+        purpose: escapeHtml(booking.purpose || 'N/A'),
+        status: escapeHtml(booking.status),
+        checkedIn: booking.checkedIn ? 'Yes' : 'No',
+        checkedInAt: escapeHtml(booking.checkedInAt || 'Not yet'),
+      }
+
       const printWindow = window.open('', '_blank', 'width=900,height=700')
       if (!printWindow) {
         throw new Error('Popup blocked by browser')
@@ -59,24 +88,133 @@ const BookingQrDetailsPage = () => {
         <html>
           <head>
             <meta charset="utf-8" />
-            <title>Booking ${booking.id} Details</title>
+            <title>Booking ${safe.id} Details</title>
             <style>
-              body { font-family: Arial, sans-serif; margin: 0; color: #0f172a; background: #f8fafc; }
-              .sheet { max-width: 850px; margin: 18px auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
-              .header { background: linear-gradient(90deg, #1d4ed8, #1e40af, #f59e0b); color: #fff; padding: 18px; display: flex; align-items: center; gap: 14px; }
-              .logo { width: 64px; height: 64px; object-fit: contain; background: rgba(255,255,255,0.9); border-radius: 10px; padding: 4px; }
-              .title h1 { margin: 0; font-size: 24px; }
-              .title p { margin: 4px 0 0; font-size: 13px; opacity: 0.95; }
-              .content { padding: 16px; }
-              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-              .card { border-radius: 10px; border: 1px solid #cbd5e1; padding: 12px; }
+              :root {
+                --navy: #1e3a8a;
+                --blue: #2563eb;
+                --orange: #f59e0b;
+                --slate: #0f172a;
+                --line: #dbe3ef;
+              }
+              * {
+                box-sizing: border-box;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              @page {
+                size: A4;
+                margin: 12mm;
+              }
+              body {
+                font-family: "Segoe UI", Arial, sans-serif;
+                margin: 0;
+                color: var(--slate);
+                background: #f1f5f9;
+              }
+              .sheet {
+                max-width: 820px;
+                margin: 12px auto;
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 16px;
+                overflow: hidden;
+              }
+              .header {
+                background: linear-gradient(115deg, var(--navy) 0%, var(--blue) 56%, var(--orange) 100%);
+                color: #fff;
+                padding: 18px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 14px;
+              }
+              .brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+              }
+              .logo {
+                width: 64px;
+                height: 64px;
+                object-fit: contain;
+                background: rgba(255,255,255,0.9);
+                border-radius: 10px;
+                padding: 4px;
+              }
+              .title h1 {
+                margin: 0;
+                font-size: 22px;
+                letter-spacing: 0.2px;
+              }
+              .title p {
+                margin: 5px 0 0;
+                font-size: 12px;
+                opacity: 0.95;
+              }
+              .status-pill {
+                background: rgba(255, 255, 255, 0.95);
+                color: #1f2937;
+                border-radius: 999px;
+                padding: 8px 12px;
+                font-size: 11px;
+                font-weight: 800;
+              }
+              .content {
+                padding: 16px;
+              }
+              .grid {
+                display: grid;
+                grid-template-columns: 1.4fr 1fr;
+                gap: 12px;
+              }
+              .card {
+                border-radius: 12px;
+                border: 1px solid var(--line);
+                padding: 12px;
+              }
               .student { background: #e0f2fe; border-color: #93c5fd; }
-              .booking { background: #fef3c7; border-color: #fcd34d; }
-              .purpose { margin-top: 12px; background: #e0e7ff; border-color: #a5b4fc; }
+              .booking { background: #fef3c7; border-color: #facc15; }
+              .qrbox { background: #ecfeff; border-color: #67e8f9; text-align: center; }
+              .purpose { margin-top: 12px; background: #eef2ff; border-color: #c7d2fe; }
               .status { margin-top: 12px; background: #dcfce7; border-color: #86efac; }
-              .label { font-size: 12px; color: #334155; margin-top: 8px; font-weight: 700; text-transform: uppercase; }
-              .value { font-size: 14px; color: #0f172a; margin-top: 2px; font-weight: 700; }
-              .footer { margin-top: 12px; font-size: 11px; color: #475569; }
+              .label {
+                font-size: 11px;
+                color: #334155;
+                margin-top: 8px;
+                font-weight: 800;
+                text-transform: uppercase;
+              }
+              .value {
+                font-size: 14px;
+                color: #0f172a;
+                margin-top: 2px;
+                font-weight: 700;
+                word-break: break-word;
+              }
+              .qr-img {
+                width: 122px;
+                height: 122px;
+                border-radius: 10px;
+                border: 1px solid #bae6fd;
+                background: #fff;
+                padding: 6px;
+              }
+              .hint {
+                margin-top: 7px;
+                font-size: 11px;
+                color: #0c4a6e;
+              }
+              .footer {
+                margin-top: 12px;
+                padding-top: 10px;
+                border-top: 1px dashed #94a3b8;
+                font-size: 11px;
+                color: #475569;
+                display: flex;
+                justify-content: space-between;
+                gap: 8px;
+              }
               @media print {
                 body { background: #fff; }
                 .sheet { margin: 0; border: 0; border-radius: 0; }
@@ -86,37 +224,56 @@ const BookingQrDetailsPage = () => {
           <body>
             <div class="sheet">
               <div class="header">
-                <img class="logo" src="${logoUrl}" alt="EduTrack Logo" />
-                <div class="title">
-                  <h1>EduTrack Booking Verification</h1>
-                  <p>Full student and booking details</p>
+                <div class="brand">
+                  <img class="logo" src="${logoUrl}" alt="EduTrack Logo" />
+                  <div class="title">
+                    <h1>EduTrack Booking Verification</h1>
+                    <p>Official student and booking details report</p>
+                  </div>
                 </div>
+                <div class="status-pill">STATUS: ${safe.status}</div>
               </div>
               <div class="content">
                 <div class="grid">
                   <div class="card student">
-                    <div class="label">Student Name</div><div class="value">${booking.requesterName}</div>
-                    <div class="label">Student Email</div><div class="value">${booking.requesterEmail}</div>
-                    <div class="label">IT Number</div><div class="value">${booking.requesterItNumber}</div>
+                    <div class="label">Student Name</div><div class="value">${safe.requesterName}</div>
+                    <div class="label">Student Email</div><div class="value">${safe.requesterEmail}</div>
+                    <div class="label">IT Number</div><div class="value">${safe.requesterItNumber}</div>
                   </div>
-                  <div class="card booking">
-                    <div class="label">Booking ID</div><div class="value">${booking.id}</div>
-                    <div class="label">Status</div><div class="value">${booking.status}</div>
-                    <div class="label">Resource</div><div class="value">${booking.resourceType} - ${booking.resourceName}</div>
-                    <div class="label">Date & Time</div><div class="value">${booking.bookingDate} | ${booking.startTime} - ${booking.endTime}</div>
+                  <div>
+                    <div class="card booking">
+                      <div class="label">Booking ID</div><div class="value">${safe.id}</div>
+                      <div class="label">Resource</div><div class="value">${safe.resourceType} - ${safe.resourceName}</div>
+                      <div class="label">Date & Time</div><div class="value">${safe.bookingDate} | ${safe.startTime} - ${safe.endTime}</div>
+                    </div>
+                    <div class="card qrbox" style="margin-top: 12px;">
+                      <img class="qr-img" src="${qrPreviewUrl}" alt="Booking QR" />
+                      <div class="hint">Scan to open this booking again</div>
+                    </div>
                   </div>
                 </div>
                 <div class="card purpose">
                   <div class="label">Purpose</div>
-                  <div class="value">${booking.purpose || 'N/A'}</div>
+                  <div class="value">${safe.purpose}</div>
                 </div>
                 <div class="card status">
                   <div class="label">Check-in Status</div>
-                  <div class="value">${booking.checkedIn ? 'Checked In' : 'Not Checked In'}${booking.checkedInAt ? ` at ${booking.checkedInAt}` : ''}</div>
+                  <div class="value">${safe.checkedIn} ${safe.checkedInAt === 'Not yet' ? '' : `| ${safe.checkedInAt}`}</div>
                 </div>
-                <div class="footer">Generated on ${new Date().toLocaleString()} | EduTrack</div>
+                <div class="footer">
+                  <div>Generated on ${new Date().toLocaleString()}</div>
+                  <div>EduTrack | Secure Smart Campus Booking</div>
+                </div>
               </div>
             </div>
+            <script>
+              window.onload = function () {
+                setTimeout(function () {
+                  window.focus();
+                  window.print();
+                }, 500);
+              };
+            </script>
           </body>
         </html>
       `
@@ -124,9 +281,7 @@ const BookingQrDetailsPage = () => {
       printWindow.document.open()
       printWindow.document.write(html)
       printWindow.document.close()
-      printWindow.focus()
-      printWindow.print()
-      setMessage('PDF view opened. Use Save as PDF in print dialog to download.')
+      setMessage('Colorful PDF view opened. Choose Save as PDF in the print dialog.')
     } catch (pdfError) {
       setError(`Failed to download PDF: ${pdfError.message}`)
     }
@@ -185,7 +340,7 @@ const BookingQrDetailsPage = () => {
             </div>
 
             <button onClick={() => void onDownloadPdf()} className="rounded-xl bg-linear-to-r from-blue-700 via-indigo-700 to-orange-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg">
-              Download Full Details PDF
+              Download Colorful PDF
             </button>
           </div>
         ) : null}

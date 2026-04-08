@@ -19,6 +19,7 @@ const durationPresets = [30, 60, 90, 120]
 const BookingFormPage = () => {
   const savedUser = localStorage.getItem('auth_user')
   const user = useMemo(() => (savedUser ? JSON.parse(savedUser) : null), [savedUser])
+  const isAdmin = (user?.role || '').toUpperCase() === 'ADMIN'
   const [form, setForm] = useState(initialForm)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -26,6 +27,10 @@ const BookingFormPage = () => {
 
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+
+  if (isAdmin) {
+    return <Navigate to="/bookings/approval" replace />
   }
 
   const recurrencePreview = (() => {

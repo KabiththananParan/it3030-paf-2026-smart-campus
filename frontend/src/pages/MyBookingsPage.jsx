@@ -37,6 +37,7 @@ const MyBookingsPage = () => {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const user = useMemo(() => (savedUser ? JSON.parse(savedUser) : null), [savedUser])
+  const isAdmin = (user?.role || '').toUpperCase() === 'ADMIN'
 
   const loadBookings = useCallback(async () => {
     if (!user) {
@@ -187,13 +188,17 @@ const MyBookingsPage = () => {
     return <Navigate to="/login" replace />
   }
 
+  if (isAdmin) {
+    return <Navigate to="/bookings/approval" replace />
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
       <div className="mx-auto max-w-5xl rounded-3xl border border-slate-200 bg-white p-6 shadow-lg">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-black text-slate-900">My Bookings</h1>
           <div className="flex gap-2 text-sm">
-            <Link to="/bookings/form" className="rounded-lg border border-slate-300 px-3 py-1.5">New Booking</Link>
+            {!isAdmin ? <Link to="/bookings/form" className="rounded-lg border border-slate-300 px-3 py-1.5">New Booking</Link> : null}
             <Link to="/bookings/calendar" className="rounded-lg border border-slate-300 px-3 py-1.5">Calendar</Link>
             <Link to="/dashboard" className="rounded-lg border border-slate-300 px-3 py-1.5">Dashboard</Link>
           </div>
