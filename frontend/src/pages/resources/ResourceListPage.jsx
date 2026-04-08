@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, MapPin, Users, Building2, Laptop, Presentation, XCircle, Briefcase, ChevronRight, X, Clock, Info, Settings, CalendarDays } from 'lucide-react';
+import {
+    Search, Plus, MapPin, Users, Building2, Laptop,
+    Presentation, Briefcase, Info, Settings, CalendarDays
+} from 'lucide-react';
 import resourceApi from '../../api/resourceApi';
 
 const ResourceListPage = () => {
     const navigate = useNavigate();
     const [resources, setResources] = useState([]);
-    const [selectedResource, setSelectedResource] = useState(null);
 
     // MOCK AUTH: Change this to 'USER' to see the student view
     const [userRole, setUserRole] = useState('ADMIN');
@@ -77,7 +79,6 @@ const ResourceListPage = () => {
                         <p className="text-blue-100/70 text-sm font-medium tracking-wide">SLIIT RESOURCE MANAGEMENT SYSTEM</p>
                     </div>
 
-                    {/* Only Admins can see "Add Resource" */}
                     {userRole === 'ADMIN' && (
                         <button
                             onClick={() => navigate('/admin/resource/add')}
@@ -148,8 +149,7 @@ const ResourceListPage = () => {
                                 </div>
                             </div>
 
-                            {/* --- UPDATED BUTTON LAYOUT --- */}
-                            {/* Flex container groups buttons side-by-side with equal weight */}
+                            {/* --- BUTTON LAYOUT --- */}
                             <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
 
                                 {/* ADMIN ONLY: Manage Button */}
@@ -163,9 +163,9 @@ const ResourceListPage = () => {
                                     </button>
                                 )}
 
-                                {/* VIEW DETAILS (Visible to all) */}
+                                {/* VIEW DETAILS - Navigates to a separate page */}
                                 <button
-                                    onClick={() => setSelectedResource(item)}
+                                    onClick={() => navigate(`/resource/details/${item.id}`)}
                                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-slate-900 text-white shadow-md hover:bg-slate-800 hover:-translate-y-0.5 transition-all duration-300"
                                 >
                                     <Info size={15} />
@@ -176,59 +176,6 @@ const ResourceListPage = () => {
                     ))}
                 </div>
             </main>
-
-            {/* --- DETAILS MODAL --- */}
-            {selectedResource && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedResource(null)}></div>
-                    <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-                        <div className={`h-3 w-full ${getTypeStyles(selectedResource.type).split(' ')[3]}`}></div>
-                        <button onClick={() => setSelectedResource(null)} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors">
-                            <X size={20} />
-                        </button>
-
-                        <div className="p-10">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-3 bg-slate-50 rounded-2xl text-slate-700">
-                                    {selectedResource.type === 'LAB' ? <Laptop size={24} /> : <Presentation size={24} />}
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-black text-slate-900 leading-tight">{selectedResource.name}</h2>
-                                    <p className="text-xs font-bold text-[#008080] uppercase tracking-widest">{selectedResource.type.replace('_', ' ')}</p>
-                                </div>
-                            </div>
-                            <hr className="border-slate-100 my-6" />
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</p>
-                                    <p className="font-bold text-slate-700 flex items-center gap-2"><MapPin size={16} className="text-slate-300" /> {selectedResource.location}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Capacity</p>
-                                    <p className="font-bold text-slate-700 flex items-center gap-2"><Users size={16} className="text-slate-300" /> {selectedResource.capacity} Seats</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</p>
-                                    <p className="font-bold text-slate-700 flex items-center gap-2 capitalize"><Info size={16} className="text-slate-300" /> {selectedResource.status.toLowerCase()}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Availability</p>
-                                    <p className="font-bold text-slate-700 flex items-center gap-2"><Clock size={16} className="text-slate-300" /> {selectedResource.availability_Windows || "Always Open"}</p>
-                                </div>
-                            </div>
-
-                            {/* --- UPDATED MODAL BUTTON --- */}
-                            {/* Both Admin and Student see only "Reserve" here */}
-                            <div className="mt-10 pt-6 border-t border-slate-50">
-                                <button className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-[#003366] text-white font-black text-xs uppercase tracking-[0.2em] shadow-lg hover:shadow-blue-900/20 hover:-translate-y-0.5 transition-all duration-300">
-                                    <CalendarDays size={16} />
-                                    Reserve this Resource
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
