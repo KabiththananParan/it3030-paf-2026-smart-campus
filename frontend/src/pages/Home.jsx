@@ -41,7 +41,7 @@ const Home = () => {
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-        <section className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-xl sm:p-10">
+        <section className="relative overflow-hidden rounded-4xl border border-slate-200 bg-white p-7 shadow-xl sm:p-10">
           <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-cyan-200/60 blur-3xl"></div>
           <div className="pointer-events-none absolute -bottom-20 left-0 h-56 w-56 rounded-full bg-orange-200/60 blur-3xl"></div>
 

@@ -42,8 +42,8 @@ const Dashboard = () => {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#f5efe8] p-2 sm:p-3 lg:p-4">
-      <div className="grid h-full w-full gap-3 rounded-[2rem] bg-slate-50 p-3 shadow-2xl lg:grid-cols-[260px_minmax(0,1fr)_280px] lg:p-4">
-        <aside className="overflow-auto rounded-[1.5rem] border border-slate-200 bg-white p-6">
+      <div className="grid h-full w-full gap-3 rounded-4xl bg-slate-50 p-3 shadow-2xl lg:grid-cols-[260px_minmax(0,1fr)_280px] lg:p-4">
+        <aside className="overflow-auto rounded-3xl border border-slate-200 bg-white p-6">
           <div className="flex items-center gap-3">
             <img src={logo} alt="EduTrack logo" className="h-10 w-10 rounded-xl object-cover shadow" />
             <div>
@@ -52,9 +52,9 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="mt-8 rounded-2xl bg-gradient-to-br from-cyan-100 to-violet-100 p-4">
+          <div className="mt-8 rounded-2xl bg-linear-to-br from-cyan-100 to-violet-100 p-4">
             <p className="text-xs uppercase text-slate-500">Logged in as</p>
-            <p className="mt-1 text-[1.85rem] font-bold leading-tight text-slate-900 break-words">{user.fullName || 'Student User'}</p>
+            <p className="mt-1 text-[1.85rem] font-bold leading-tight text-slate-900 break-word">{user.fullName || 'Student User'}</p>
             <p className="text-sm text-slate-600 break-all">{user.email}</p>
             <p className="mt-2 inline-flex rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-700">{user.role || 'STUDENT'}</p>
           </div>
@@ -72,7 +72,7 @@ const Dashboard = () => {
           </button>
         </aside>
 
-        <main className="overflow-auto rounded-[1.5rem] bg-white p-6">
+        <main className="overflow-auto rounded-3xl bg-white p-6">
           <nav className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div className="flex items-center gap-3">
               <img src={logo} alt="EduTrack logo" className="h-9 w-9 rounded-lg object-cover" />
@@ -161,7 +161,7 @@ const Dashboard = () => {
           </footer>
         </main>
 
-        <aside className="overflow-auto rounded-[1.5rem] border border-slate-200 bg-white p-6">
+        <aside className="overflow-auto rounded-3xl border border-slate-200 bg-white p-6">
           <h2 className="text-2xl font-black text-slate-900">Calendar</h2>
           <p className="mt-1 text-sm text-slate-500">Today</p>
           <div className="mt-6 space-y-4">

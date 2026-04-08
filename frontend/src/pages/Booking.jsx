@@ -5,10 +5,10 @@ import logo from '../assets/edutrack.png'
 const API_BASE_URL = 'http://localhost:8080'
 
 const resources = [
-  { id: 101, name: 'Innovation Lab A', type: 'Computer Lab', capacity: 40, zone: 'Engineering Block', accent: 'from-teal-500 to-cyan-500' },
-  { id: 102, name: 'Seminar Hall C1', type: 'Lecture Hall', capacity: 120, zone: 'Main Auditorium Wing', accent: 'from-amber-500 to-orange-500' },
-  { id: 103, name: 'Studio Room S2', type: 'Media Studio', capacity: 18, zone: 'Digital Media Center', accent: 'from-slate-700 to-slate-500' },
-  { id: 104, name: 'Research Pod R4', type: 'Discussion Room', capacity: 10, zone: 'Library Annex', accent: 'from-emerald-500 to-teal-600' },
+  { id: 101, name: 'Innovation Lab A', type: 'Computer Lab', capacity: 40, zone: 'Engineering Block', accent: 'bg-[linear-gradient(145deg,#0f766e_0%,#0891b2_58%,#0f172a_100%)]' },
+  { id: 102, name: 'Seminar Hall C1', type: 'Lecture Hall', capacity: 120, zone: 'Main Auditorium Wing', accent: 'bg-[linear-gradient(145deg,#b45309_0%,#f97316_58%,#7c2d12_100%)]' },
+  { id: 103, name: 'Studio Room S2', type: 'Media Studio', capacity: 18, zone: 'Digital Media Center', accent: 'bg-[linear-gradient(145deg,#334155_0%,#475569_52%,#0f172a_100%)]' },
+  { id: 104, name: 'Research Pod R4', type: 'Discussion Room', capacity: 10, zone: 'Library Annex', accent: 'bg-[linear-gradient(145deg,#047857_0%,#0f766e_55%,#134e4a_100%)]' },
 ]
 
 const demoBookings = [
@@ -330,7 +330,7 @@ const Booking = () => {
             <img src={logo} alt="EduTrack logo" className="h-11 w-11 rounded-2xl object-cover shadow-sm" />
             <div>
               <p className="text-[11px] uppercase tracking-[0.26em] text-slate-500">EduTrack Smart Campus</p>
-              <h1 className="mt-1 text-xl font-black text-slate-950">Booking Center</h1>
+              <h1 className="mt-1 text-xl font-black text-slate-900! drop-shadow-[0_1px_0_rgba(255,255,255,0.65)]">Booking Center</h1>
             </div>
           </div>
 
@@ -355,7 +355,7 @@ const Booking = () => {
       </header>
 
       <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
-        <section className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-[linear-gradient(135deg,#0f172a_0%,#103b38_46%,#0f766e_100%)] px-6 py-7 text-white shadow-[0_28px_80px_rgba(15,23,42,0.16)] sm:px-8 sm:py-9">
+        <section className="relative overflow-hidden rounded-4xl border border-slate-200 bg-[linear-gradient(135deg,#0f172a_0%,#103b38_46%,#0f766e_100%)] px-6 py-7 text-white shadow-[0_28px_80px_rgba(15,23,42,0.16)] sm:px-8 sm:py-9">
           <div className="absolute -right-10 top-0 h-52 w-52 rounded-full bg-white/10 blur-3xl"></div>
           <div className="absolute -bottom-16 left-10 h-48 w-48 rounded-full bg-teal-300/20 blur-3xl"></div>
 
@@ -557,7 +557,7 @@ const Booking = () => {
 
                         <div className="flex items-center justify-between gap-3 lg:flex-col lg:items-end">
                           {booking.cancelReason ? (
-                            <p className="max-w-[220px] text-right text-xs text-slate-500">{booking.cancelReason}</p>
+                            <p className="max-w-55 text-right text-xs text-slate-500">{booking.cancelReason}</p>
                           ) : (
                             <span className="text-xs uppercase tracking-[0.18em] text-slate-400">{resource.type}</span>
                           )}
@@ -580,19 +580,23 @@ const Booking = () => {
           </div>
 
           <aside className="space-y-6">
-            <section className={`overflow-hidden rounded-[1.8rem] bg-gradient-to-br ${selectedResource.accent} p-6 text-white shadow-[0_18px_60px_rgba(15,23,42,0.12)]`}>
-              <p className="text-xs uppercase tracking-[0.24em] text-white/75">Selected resource</p>
-              <h3 className="mt-3 text-3xl font-black">{selectedResource.name}</h3>
-              <p className="mt-2 text-sm text-white/85">{selectedResource.type}</p>
+            <section className={`relative overflow-hidden rounded-[1.8rem] ${selectedResource.accent} p-6 text-white shadow-[0_18px_60px_rgba(15,23,42,0.12)]`}>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_38%)]"></div>
+              <div className="absolute -right-12 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl"></div>
+              <div className="relative z-10">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/70">Selected resource</p>
+              <h3 className="mt-3 text-3xl font-black tracking-tight text-white drop-shadow-[0_2px_10px_rgba(15,23,42,0.28)]">{selectedResource.name}</h3>
+              <p className="mt-2 text-sm font-medium text-white/85">{selectedResource.type}</p>
               <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-2xl bg-white/12 p-4">
-                  <p className="text-white/70">Capacity</p>
-                  <p className="mt-1 text-2xl font-bold">{selectedResource.capacity}</p>
+                <div className="rounded-2xl border border-white/15 bg-slate-950/22 p-4 backdrop-blur-sm">
+                  <p className="text-white/65">Capacity</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{selectedResource.capacity}</p>
                 </div>
-                <div className="rounded-2xl bg-white/12 p-4">
-                  <p className="text-white/70">Zone</p>
-                  <p className="mt-1 text-base font-bold leading-tight">{selectedResource.zone}</p>
+                <div className="rounded-2xl border border-white/15 bg-slate-950/22 p-4 backdrop-blur-sm">
+                  <p className="text-white/65">Zone</p>
+                  <p className="mt-1 text-base font-bold leading-tight text-white">{selectedResource.zone}</p>
                 </div>
+              </div>
               </div>
             </section>
 
