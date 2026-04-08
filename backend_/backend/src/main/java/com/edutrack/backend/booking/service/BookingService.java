@@ -1,10 +1,13 @@
 package com.edutrack.backend.booking.service;
 
 import com.edutrack.backend.booking.dto.AdminDecisionRequest;
+import com.edutrack.backend.booking.dto.AdminAnalyticsResponse;
 import com.edutrack.backend.booking.dto.BookingBatchResponse;
 import com.edutrack.backend.booking.dto.BookingResponse;
 import com.edutrack.backend.booking.dto.BookingSummaryResponse;
 import com.edutrack.backend.booking.dto.CreateBookingRequest;
+import com.edutrack.backend.booking.dto.DailyBookingTrendResponse;
+import com.edutrack.backend.booking.dto.ResourceDemandResponse;
 import com.edutrack.backend.booking.dto.StudentVerificationResponse;
 import com.edutrack.backend.booking.dto.UpdateBookingRequest;
 import com.edutrack.backend.auth.entity.UserAccount;
@@ -22,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -196,7 +200,96 @@ public class BookingService {
                 ? bookingRepository.findAllByOrderByBookingDateAscStartTimeAsc()
                 : bookingRepository.findByStatusOrderByBookingDateAscStartTimeAsc(status);
 
-        return bookings.stream().map(BookingResponse::from).toList();
+        return bookings.stream().map(this::toBookingResponseWithInsight).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminAnalyticsResponse getAdminAnalytics() {
+        LocalDate today = LocalDate.now();
+        LocalDate monthStart = today.withDayOfMonth(1);
+        LocalDate monthEnd = today.withDayOfMonth(today.lengthOfMonth());
+
+        List<Booking> monthlyBookings = bookingRepository
+                .findByBookingDateBetweenOrderByBookingDateAscStartTimeAsc(monthStart, monthEnd);
+
+        long totalRequests = monthlyBookings.size();
+        long pendingRequests = monthlyBookings.stream().filter(booking -> booking.getStatus() == BookingStatus.PENDING)
+                .count();
+        long approvedRequests = monthlyBookings.stream()
+                .filter(booking -> booking.getStatus() == BookingStatus.APPROVED)
+                .count();
+        long rejectedRequests = monthlyBookings.stream()
+                .filter(booking -> booking.getStatus() == BookingStatus.REJECTED)
+                .count();
+        long cancelledRequests = monthlyBookings.stream()
+                .filter(booking -> booking.getStatus() == BookingStatus.CANCELLED)
+                .count();
+
+        double approvalRate = totalRequests == 0 ? 0.0 : (approvedRequests * 100.0) / totalRequests;
+
+        List<Booking> decidedBookings = monthlyBookings.stream()
+                .filter(booking -> booking.getStatus() == BookingStatus.APPROVED
+                        || booking.getStatus() == BookingStatus.REJECTED)
+                .filter(booking -> booking.getCreatedAt() != null && booking.getUpdatedAt() != null)
+                .toList();
+
+        double averageDecisionHours = decidedBookings.isEmpty()
+                ? 0.0
+                : decidedBookings.stream()
+                        .mapToLong(booking -> Math.max(0,
+                                ChronoUnit.MINUTES.between(booking.getCreatedAt(), booking.getUpdatedAt())))
+                        .average()
+                        .orElse(0.0) / 60.0;
+
+        long urgentPendingRequests = bookingRepository.findAllByOrderByBookingDateAscStartTimeAsc().stream()
+                .filter(booking -> booking.getStatus() == BookingStatus.PENDING)
+                .filter(booking -> !booking.getBookingDate().isBefore(today)
+                        && !booking.getBookingDate().isAfter(today.plusDays(1)))
+                .count();
+
+        List<ResourceDemandResponse> topResources = monthlyBookings.stream()
+                .collect(Collectors.groupingBy(Booking::getResourceName, Collectors.counting()))
+                .entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> new ResourceDemandResponse(entry.getKey(), entry.getValue()))
+                .toList();
+
+        Map<LocalDate, List<Booking>> weeklyByDate = bookingRepository
+                .findByBookingDateBetweenOrderByBookingDateAscStartTimeAsc(today.minusDays(6), today)
+                .stream()
+                .collect(Collectors.groupingBy(Booking::getBookingDate));
+
+        List<DailyBookingTrendResponse> weeklyTrend = new ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            LocalDate day = today.minusDays(i);
+            List<Booking> dayBookings = weeklyByDate.getOrDefault(day, List.of());
+            long dayPending = dayBookings.stream().filter(booking -> booking.getStatus() == BookingStatus.PENDING)
+                    .count();
+            long dayApproved = dayBookings.stream().filter(booking -> booking.getStatus() == BookingStatus.APPROVED)
+                    .count();
+
+            weeklyTrend.add(new DailyBookingTrendResponse(
+                    day.toString(),
+                    dayBookings.size(),
+                    dayPending,
+                    dayApproved));
+        }
+
+        String periodLabel = monthStart + " to " + monthEnd;
+
+        return new AdminAnalyticsResponse(
+                periodLabel,
+                totalRequests,
+                pendingRequests,
+                approvedRequests,
+                rejectedRequests,
+                cancelledRequests,
+                round2(approvalRate),
+                round2(averageDecisionHours),
+                urgentPendingRequests,
+                topResources,
+                weeklyTrend);
     }
 
     @Transactional(readOnly = true)
@@ -333,7 +426,7 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public BookingResponse getBookingById(Long id) {
-        return BookingResponse.from(findBookingOrThrow(id));
+        return toBookingResponseWithInsight(findBookingOrThrow(id));
     }
 
     @Transactional(readOnly = true)
@@ -346,6 +439,99 @@ public class BookingService {
                 .orElseThrow(() -> new BookingException("Invalid or expired QR token", HttpStatus.NOT_FOUND));
 
         return BookingResponse.from(booking);
+    }
+
+    private BookingResponse toBookingResponseWithInsight(Booking booking) {
+        int score = 10;
+        List<String> reasons = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+
+        if (booking.getStatus() == BookingStatus.PENDING) {
+            score += 18;
+            reasons.add("Awaiting admin decision");
+        }
+
+        long daysUntil = ChronoUnit.DAYS.between(today, booking.getBookingDate());
+        if (booking.getStatus() == BookingStatus.PENDING && daysUntil < 0) {
+            score += 25;
+            reasons.add("Pending request is already in the past");
+        } else if (daysUntil <= 1) {
+            score += 18;
+            reasons.add("Booking is within next 24 hours");
+        } else if (daysUntil <= 3) {
+            score += 10;
+            reasons.add("Near-term booking window");
+        }
+
+        int hour = booking.getStartTime().getHour();
+        if (hour >= 10 && hour <= 14) {
+            score += 8;
+            reasons.add("Peak utilization time slot");
+        }
+
+        long activeSameResource = bookingRepository.countByResourceNameIgnoreCaseAndBookingDateAndStatusIn(
+                booking.getResourceName(),
+                booking.getBookingDate(),
+                ACTIVE_BOOKING_STATUSES);
+
+        if (activeSameResource >= 5) {
+            score += 20;
+            reasons.add("Heavy demand for this resource/date");
+        } else if (activeSameResource >= 3) {
+            score += 12;
+            reasons.add("Moderate demand for this resource/date");
+        }
+
+        long requesterTotal = bookingRepository.countByRequesterEmailIgnoreCase(booking.getRequesterEmail());
+        long requesterCancelled = bookingRepository.countByRequesterEmailIgnoreCaseAndStatus(
+                booking.getRequesterEmail(),
+                BookingStatus.CANCELLED);
+
+        if (requesterTotal >= 4) {
+            double cancelRate = requesterCancelled / (double) requesterTotal;
+            if (cancelRate >= 0.5) {
+                score += 15;
+                reasons.add("Requester has high cancellation history");
+            } else if (cancelRate >= 0.3) {
+                score += 8;
+                reasons.add("Requester has moderate cancellation history");
+            }
+        }
+
+        if (booking.getCreatedAt() != null) {
+            LocalDateTime bookingStart = booking.getBookingDate().atTime(booking.getStartTime());
+            long leadHours = ChronoUnit.HOURS.between(booking.getCreatedAt(), bookingStart);
+            if (leadHours <= 24) {
+                score += 10;
+                reasons.add("Short notice request");
+            }
+        }
+
+        int finalScore = Math.max(0, Math.min(score, 100));
+        String level = finalScore >= 70 ? "HIGH" : finalScore >= 40 ? "MEDIUM" : "LOW";
+        String recommendedAction;
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            recommendedAction = "MONITOR";
+        } else if ("LOW".equals(level)) {
+            recommendedAction = "APPROVE";
+        } else {
+            recommendedAction = "REVIEW";
+        }
+
+        if (reasons.isEmpty()) {
+            reasons.add("No exceptional risk signals");
+        }
+
+        List<String> topReasons = reasons.stream()
+                .sorted(Comparator.naturalOrder())
+                .limit(4)
+                .toList();
+
+        return BookingResponse.from(booking, finalScore, level, recommendedAction, topReasons);
+    }
+
+    private double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private void ensureNoOverlap(

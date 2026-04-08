@@ -1,6 +1,7 @@
 package com.edutrack.backend.booking.controller;
 
 import com.edutrack.backend.booking.dto.AdminDecisionRequest;
+import com.edutrack.backend.booking.dto.AdminAnalyticsResponse;
 import com.edutrack.backend.booking.dto.BookingBatchResponse;
 import com.edutrack.backend.booking.dto.BookingResponse;
 import com.edutrack.backend.booking.dto.BookingSummaryResponse;
@@ -73,6 +74,11 @@ public class BookingController {
             @RequestParam(required = false) BookingStatus status) {
         List<BookingResponse> bookings = bookingService.getBookings(status);
         return ResponseEntity.ok(bookings);
+    }
+
+    @GetMapping("/admin/analytics")
+    public ResponseEntity<AdminAnalyticsResponse> getAdminAnalytics() {
+        return ResponseEntity.ok(bookingService.getAdminAnalytics());
     }
 
     @GetMapping("/calendar")

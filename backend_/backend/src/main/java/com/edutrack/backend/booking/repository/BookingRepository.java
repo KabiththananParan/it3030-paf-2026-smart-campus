@@ -38,6 +38,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
         long countByRequesterEmailIgnoreCaseAndCheckedInTrue(String requesterEmail);
 
+        long countByResourceNameIgnoreCaseAndBookingDateAndStatusIn(
+                        String resourceName,
+                        LocalDate bookingDate,
+                        List<BookingStatus> statuses);
+
         Booking findTopByRequesterEmailIgnoreCaseAndBookingDateGreaterThanEqualOrderByBookingDateAscStartTimeAsc(
                         String requesterEmail,
                         LocalDate fromDate);

@@ -77,6 +77,14 @@ export const getBookings = async ({ status } = {}) => {
   return parseResponse(response)
 }
 
+export const getAdminAnalytics = async () => {
+  const response = await fetch(`${API_BASE}/admin/analytics`, {
+    method: 'GET',
+  })
+
+  return parseResponse(response)
+}
+
 export const getCalendarBookings = async ({ from, to, email } = {}) => {
   const query = new URLSearchParams()
   if (from) {

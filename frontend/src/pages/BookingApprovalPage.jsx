@@ -5,6 +5,7 @@ import {
   cancelBooking,
   createBooking,
   deleteBooking,
+  getAdminAnalytics,
   getBookings,
   rejectBooking,
   updateBooking,
@@ -41,6 +42,7 @@ const BookingApprovalPage = () => {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [query, setQuery] = useState('')
   const [adminCreateForm, setAdminCreateForm] = useState(initialAdminCreate)
+  const [analytics, setAnalytics] = useState(null)
   const [studentVerified, setStudentVerified] = useState(false)
   const [verifyingStudent, setVerifyingStudent] = useState(false)
   const [verifiedStudentKey, setVerifiedStudentKey] = useState('')
@@ -55,8 +57,12 @@ const BookingApprovalPage = () => {
     }
 
     try {
-      const data = await getBookings()
-      setBookings(data)
+      const [bookingsData, analyticsData] = await Promise.all([
+        getBookings(),
+        getAdminAnalytics(),
+      ])
+      setBookings(bookingsData)
+      setAnalytics(analyticsData)
     } catch (loadError) {
       setError(loadError.message)
     }
@@ -292,6 +298,59 @@ const BookingApprovalPage = () => {
           <div className="rounded-xl bg-slate-200 p-3 text-center"><p className="text-xs text-slate-600">Cancelled</p><p className="text-lg font-bold text-slate-800">{stats.cancelled}</p></div>
         </div>
 
+        {analytics ? (
+          <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-bold text-slate-900">Admin Analytics ({analytics.periodLabel})</p>
+              <p className="text-xs text-slate-500">Innovation: Smart Insights + Ops Metrics</p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+              <div className="rounded-lg bg-white p-3 text-center ring-1 ring-slate-200"><p className="text-xs text-slate-500">Approval Rate</p><p className="text-lg font-bold text-emerald-700">{analytics.approvalRate}%</p></div>
+              <div className="rounded-lg bg-white p-3 text-center ring-1 ring-slate-200"><p className="text-xs text-slate-500">Avg Decision</p><p className="text-lg font-bold text-indigo-700">{analytics.averageDecisionHours}h</p></div>
+              <div className="rounded-lg bg-white p-3 text-center ring-1 ring-slate-200"><p className="text-xs text-slate-500">Urgent Pending</p><p className="text-lg font-bold text-rose-700">{analytics.urgentPendingRequests}</p></div>
+              <div className="rounded-lg bg-white p-3 text-center ring-1 ring-slate-200"><p className="text-xs text-slate-500">Month Total</p><p className="text-lg font-bold text-slate-900">{analytics.totalRequests}</p></div>
+              <div className="rounded-lg bg-white p-3 text-center ring-1 ring-slate-200"><p className="text-xs text-slate-500">Approved</p><p className="text-lg font-bold text-emerald-700">{analytics.approvedRequests}</p></div>
+              <div className="rounded-lg bg-white p-3 text-center ring-1 ring-slate-200"><p className="text-xs text-slate-500">Rejected</p><p className="text-lg font-bold text-amber-700">{analytics.rejectedRequests}</p></div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <div className="rounded-lg bg-white p-3 ring-1 ring-slate-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Top Requested Resources</p>
+                <div className="mt-2 space-y-2">
+                  {(analytics.topResources || []).map((item) => (
+                    <div key={item.resourceName} className="flex items-center justify-between rounded-md bg-slate-50 px-2 py-1">
+                      <span className="text-sm text-slate-700">{item.resourceName}</span>
+                      <span className="text-xs font-bold text-slate-900">{item.totalRequests}</span>
+                    </div>
+                  ))}
+                  {(analytics.topResources || []).length === 0 ? <p className="text-sm text-slate-500">No resource demand data yet.</p> : null}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white p-3 ring-1 ring-slate-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Weekly Request Trend</p>
+                <div className="mt-2 space-y-2">
+                  {(analytics.weeklyTrend || []).map((point) => {
+                    const barWidth = Math.min(100, (point.total || 0) * 20)
+                    return (
+                      <div key={point.date} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs text-slate-600">
+                          <span>{point.date}</span>
+                          <span>Total {point.total} | P {point.pending} | A {point.approved}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-100">
+                          <div style={{ width: `${barWidth}%` }} className="h-2 rounded-full bg-linear-to-r from-indigo-600 to-cyan-500" />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <form onSubmit={onCreateForStudent} className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="mb-3 text-sm font-semibold text-slate-900">Create Booking For Student</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -337,11 +396,26 @@ const BookingApprovalPage = () => {
               <p className="font-bold text-slate-900">
                 {booking.resourceName}
                 <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge[booking.status] || 'bg-slate-100 text-slate-700'}`}>{booking.status}</span>
+                {booking.riskLevel ? (
+                  <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${booking.riskLevel === 'HIGH' ? 'bg-rose-100 text-rose-700' : booking.riskLevel === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    Risk {booking.riskLevel} ({booking.riskScore})
+                  </span>
+                ) : null}
               </p>
               <p className="text-sm text-slate-600">{booking.bookingDate} | {booking.startTime} - {booking.endTime}</p>
               <p className="text-sm text-slate-700">{booking.purpose}</p>
               <p className="text-xs text-slate-500">{booking.requesterName} ({booking.requesterItNumber})</p>
               <p className="text-xs text-slate-500">{booking.requesterEmail}</p>
+              {booking.recommendedAction ? (
+                <p className="mt-1 text-xs font-semibold text-indigo-700">Suggested Action: {booking.recommendedAction}</p>
+              ) : null}
+              {(booking.riskReasons || []).length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {booking.riskReasons.slice(0, 3).map((reason) => (
+                    <span key={`${booking.id}-${reason}`} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{reason}</span>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="mt-3 flex gap-2">
                 {booking.status === 'PENDING' ? <button onClick={() => onApprove(booking.id)} className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700">Approve</button> : null}

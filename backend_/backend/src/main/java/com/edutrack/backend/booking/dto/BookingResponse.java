@@ -6,6 +6,7 @@ import com.edutrack.backend.booking.enums.BookingStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 public record BookingResponse(
         Long id,
@@ -26,8 +27,21 @@ public record BookingResponse(
         String recurrenceGroupId,
         Integer recurrenceIndex,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        LocalDateTime updatedAt,
+        Integer riskScore,
+        String riskLevel,
+        String recommendedAction,
+        List<String> riskReasons) {
     public static BookingResponse from(Booking booking) {
+        return from(booking, null, null, null, List.of());
+    }
+
+    public static BookingResponse from(
+            Booking booking,
+            Integer riskScore,
+            String riskLevel,
+            String recommendedAction,
+            List<String> riskReasons) {
         return new BookingResponse(
                 booking.getId(),
                 booking.getRequesterName(),
@@ -47,6 +61,10 @@ public record BookingResponse(
                 booking.getRecurrenceGroupId(),
                 booking.getRecurrenceIndex(),
                 booking.getCreatedAt(),
-                booking.getUpdatedAt());
+                booking.getUpdatedAt(),
+                riskScore,
+                riskLevel,
+                recommendedAction,
+                riskReasons == null ? List.of() : riskReasons);
     }
 }
