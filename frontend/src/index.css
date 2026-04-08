@@ -1,4 +1,5 @@
-<<<<<<< HEAD
+@import "tailwindcss";
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -110,8 +111,6 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
-=======
-@import "tailwindcss";
 
 .water-button {
 	position: relative;
@@ -176,4 +175,3 @@ code {
 		transform: translateX(120%);
 	}
 }
->>>>>>> origin/feature/auth
