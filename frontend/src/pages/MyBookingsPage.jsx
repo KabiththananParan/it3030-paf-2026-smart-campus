@@ -19,7 +19,9 @@ const statusBadge = {
 }
 
 const buildQrImageUrl = (token) => {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(token)}`
+  const publicAppBase = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin
+  const scanUrl = `${publicAppBase}/bookings/scan/${encodeURIComponent(token)}`
+  return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(scanUrl)}`
 }
 
 const MyBookingsPage = () => {

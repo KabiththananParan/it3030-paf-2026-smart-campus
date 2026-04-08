@@ -153,3 +153,11 @@ export const checkInBooking = async (id, token) => {
 
   return parseResponse(response)
 }
+
+export const getBookingByQrToken = async (token) => {
+  const response = await fetch(`${API_BASE}/qr/${encodeURIComponent(token)}`, {
+    method: 'GET',
+  })
+
+  return parseResponse(response)
+}

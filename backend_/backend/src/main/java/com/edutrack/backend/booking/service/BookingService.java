@@ -336,6 +336,18 @@ public class BookingService {
         return BookingResponse.from(findBookingOrThrow(id));
     }
 
+    @Transactional(readOnly = true)
+    public BookingResponse getBookingByQrToken(String token) {
+        if (token == null || token.trim().isBlank()) {
+            throw new BookingException("QR token is required", HttpStatus.BAD_REQUEST);
+        }
+
+        Booking booking = bookingRepository.findByQrToken(token.trim())
+                .orElseThrow(() -> new BookingException("Invalid or expired QR token", HttpStatus.NOT_FOUND));
+
+        return BookingResponse.from(booking);
+    }
+
     private void ensureNoOverlap(
             String resourceName,
             LocalDate bookingDate,

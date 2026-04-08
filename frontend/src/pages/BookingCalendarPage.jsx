@@ -11,7 +11,9 @@ const BookingCalendarPage = () => {
   const isAdmin = (user?.role || '').toUpperCase() === 'ADMIN'
 
   const buildQrImageUrl = (token) => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(token)}`
+    const publicAppBase = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin
+    const scanUrl = `${publicAppBase}/bookings/scan/${encodeURIComponent(token)}`
+    return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(scanUrl)}`
   }
 
   const loadCalendar = useCallback(async () => {

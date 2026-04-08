@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import BookingApprovalPage from './pages/BookingApprovalPage.jsx'
 import BookingCalendarPage from './pages/BookingCalendarPage.jsx'
 import BookingFormPage from './pages/BookingFormPage.jsx'
+import BookingQrDetailsPage from './pages/BookingQrDetailsPage.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import Home from './pages/Home.jsx'
@@ -22,6 +23,7 @@ function App() {
       <Route path="/bookings/my" element={<MyBookingsPage />} />
       <Route path="/bookings/approval" element={<BookingApprovalPage />} />
       <Route path="/bookings/calendar" element={<BookingCalendarPage />} />
+      <Route path="/bookings/scan/:token" element={<BookingQrDetailsPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

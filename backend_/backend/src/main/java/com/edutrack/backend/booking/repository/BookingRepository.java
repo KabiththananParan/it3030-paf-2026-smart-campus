@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
@@ -40,6 +41,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         Booking findTopByRequesterEmailIgnoreCaseAndBookingDateGreaterThanEqualOrderByBookingDateAscStartTimeAsc(
                         String requesterEmail,
                         LocalDate fromDate);
+
+        Optional<Booking> findByQrToken(String qrToken);
 
         @Query("""
                         SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
