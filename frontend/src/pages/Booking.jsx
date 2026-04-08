@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 
@@ -90,6 +90,7 @@ const getResourceById = (resourceId) =>
 
 const Booking = () => {
   const navigate = useNavigate()
+  const { userId: routeUserId } = useParams()
   const savedUser = localStorage.getItem('auth_user')
   const [formData, setFormData] = useState(initialForm)
   const [formMessage, setFormMessage] = useState('')
@@ -105,8 +106,13 @@ const Booking = () => {
 
   const user = JSON.parse(savedUser)
   const userId = user.id || user.userId || null
+  const normalizedRouteUserId = routeUserId ? Number(routeUserId) : null
   const userItNumber = user.itNumber || user.itNo || localStorage.getItem('auth_it_number') || 'IT Number'
   const selectedResource = getResourceById(formData.resourceId)
+
+  if (userId && (!normalizedRouteUserId || normalizedRouteUserId !== Number(userId))) {
+    return <Navigate to={`/bookings/${userId}`} replace />
+  }
 
   const pendingCount = bookings.filter((booking) => booking.status === 'PENDING').length
   const approvedCount = bookings.filter((booking) => booking.status === 'APPROVED').length
@@ -131,7 +137,7 @@ const Booking = () => {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/bookings/my?userId=${userId}`)
+        const response = await fetch(`${API_BASE_URL}/bookings/my?userId=${normalizedRouteUserId}`)
         if (!response.ok) {
           throw new Error('Booking data is not available yet.')
         }
@@ -159,7 +165,7 @@ const Booking = () => {
     return () => {
       ignore = true
     }
-  }, [userId])
+  }, [normalizedRouteUserId, userId])
 
   const handleLogout = () => {
     localStorage.removeItem('auth_user')
@@ -238,7 +244,7 @@ const Booking = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings?userId=${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/bookings?userId=${normalizedRouteUserId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,7 +288,7 @@ const Booking = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/cancel?userId=${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/cancel?userId=${normalizedRouteUserId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

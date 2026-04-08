@@ -14,6 +14,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/bookings/:userId" element={<Booking />} />
       <Route path="/bookings" element={<Booking />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

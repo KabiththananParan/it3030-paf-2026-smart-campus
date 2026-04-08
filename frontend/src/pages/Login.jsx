@@ -39,6 +39,8 @@ const Login = () => {
       const resolvedItNumber = data.itNumber || data.itNo || fallbackItNumber || 'IT Number'
 
       localStorage.setItem('auth_user', JSON.stringify({
+        id: data.userId,
+        userId: data.userId,
         email: data.email,
         itNumber: resolvedItNumber,
         itNo: resolvedItNumber,

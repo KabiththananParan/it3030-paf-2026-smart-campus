@@ -54,8 +54,9 @@ public class AuthService {
 
         return AuthResponse.success(
                 "Signup successful",
+                saved.getId(),
                 saved.getEmail(),
-            saved.getItNumber(),
+                saved.getItNumber(),
                 saved.getFullName(),
                 saved.getRole()
         );
@@ -74,8 +75,9 @@ public class AuthService {
 
         return AuthResponse.success(
                 "Login successful",
+                userAccount.getId(),
                 userAccount.getEmail(),
-            userAccount.getItNumber(),
+                userAccount.getItNumber(),
                 userAccount.getFullName(),
                 userAccount.getRole()
         );
