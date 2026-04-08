@@ -5,6 +5,7 @@ import com.edutrack.backend.booking.dto.BookingBatchResponse;
 import com.edutrack.backend.booking.dto.BookingResponse;
 import com.edutrack.backend.booking.dto.BookingSummaryResponse;
 import com.edutrack.backend.booking.dto.CreateBookingRequest;
+import com.edutrack.backend.booking.dto.StudentVerificationResponse;
 import com.edutrack.backend.booking.dto.UpdateBookingRequest;
 import com.edutrack.backend.booking.enums.BookingStatus;
 import com.edutrack.backend.booking.service.BookingService;
@@ -39,6 +40,15 @@ public class BookingController {
     public ResponseEntity<BookingBatchResponse> createBooking(@Valid @RequestBody CreateBookingRequest request) {
         BookingBatchResponse response = bookingService.createBooking(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/verify-student")
+    public ResponseEntity<StudentVerificationResponse> verifyStudentForAdmin(
+            @RequestParam String name,
+            @RequestParam String email,
+            @RequestParam String itNumber) {
+        StudentVerificationResponse response = bookingService.verifyStudentForAdmin(name, email, itNumber);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/my")

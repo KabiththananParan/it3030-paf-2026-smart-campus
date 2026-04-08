@@ -22,6 +22,20 @@ export const createBooking = async (payload) => {
   return parseResponse(response)
 }
 
+export const verifyStudentForAdmin = async ({ requesterName, requesterEmail, requesterItNumber }) => {
+  const query = new URLSearchParams({
+    name: requesterName,
+    email: requesterEmail,
+    itNumber: requesterItNumber,
+  })
+
+  const response = await fetch(`${API_BASE}/verify-student?${query.toString()}`, {
+    method: 'GET',
+  })
+
+  return parseResponse(response)
+}
+
 export const getMyBookings = async (email) => {
   const query = new URLSearchParams({ email })
   const response = await fetch(`${API_BASE}/my?${query.toString()}`, {

@@ -77,6 +77,8 @@ The booking form supports a recurrence count. When the count is greater than one
 
 When an admin approves a booking, the backend generates a QR token. The approved booking can later be checked in using that token. This feature supports attendance verification and controlled resource access.
 
+On the frontend, the approved booking also displays a scannable QR code so the check-in flow is visible and easy to demonstrate during viva.
+
 ## 4. Backend Endpoints
 
 The booking module includes these endpoints:
@@ -114,6 +116,7 @@ The booking module includes these endpoints:
 - Users view, update, or cancel their own bookings from the My Bookings page.
 - Admin users approve or reject pending requests from the Booking Approval page.
 - The Calendar page groups bookings by date and supports QR check-in for approved bookings.
+- Approved bookings show a scannable QR code in the UI for quick verification.
 
 ## 6. Database and Persistence
 

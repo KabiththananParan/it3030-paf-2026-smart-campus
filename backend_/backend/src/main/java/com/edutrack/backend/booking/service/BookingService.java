@@ -5,7 +5,10 @@ import com.edutrack.backend.booking.dto.BookingBatchResponse;
 import com.edutrack.backend.booking.dto.BookingResponse;
 import com.edutrack.backend.booking.dto.BookingSummaryResponse;
 import com.edutrack.backend.booking.dto.CreateBookingRequest;
+import com.edutrack.backend.booking.dto.StudentVerificationResponse;
 import com.edutrack.backend.booking.dto.UpdateBookingRequest;
+import com.edutrack.backend.auth.entity.UserAccount;
+import com.edutrack.backend.auth.repository.UserAccountRepository;
 import com.edutrack.backend.booking.entity.Booking;
 import com.edutrack.backend.booking.enums.BookingStatus;
 import com.edutrack.backend.booking.exception.BookingException;
@@ -34,14 +37,21 @@ public class BookingService {
     private static final LocalTime BUSINESS_DAY_END = LocalTime.of(22, 0);
 
     private final BookingRepository bookingRepository;
+    private final UserAccountRepository userAccountRepository;
 
-    public BookingService(BookingRepository bookingRepository) {
+    public BookingService(BookingRepository bookingRepository, UserAccountRepository userAccountRepository) {
         this.bookingRepository = bookingRepository;
+        this.userAccountRepository = userAccountRepository;
     }
 
     @Transactional
     public BookingBatchResponse createBooking(CreateBookingRequest request) {
         validateTimeRange(request.startTime(), request.endTime());
+
+        UserAccount student = findActiveStudentOrThrow(
+                request.requesterName(),
+                request.requesterEmail(),
+                request.requesterItNumber());
 
         int recurrenceCount = request.recurrenceCount() == null ? 1 : request.recurrenceCount();
         String recurrenceGroupId = recurrenceCount > 1 ? UUID.randomUUID().toString() : null;
@@ -57,9 +67,9 @@ public class BookingService {
                     null);
 
             Booking booking = new Booking();
-            booking.setRequesterName(request.requesterName().trim());
-            booking.setRequesterEmail(normalizeEmail(request.requesterEmail()));
-            booking.setRequesterItNumber(normalizeItNumber(request.requesterItNumber()));
+            booking.setRequesterName(student.getFullName().trim());
+            booking.setRequesterEmail(student.getEmail());
+            booking.setRequesterItNumber(student.getItNumber());
             booking.setResourceType(request.resourceType().trim());
             booking.setResourceName(request.resourceName().trim());
             booking.setPurpose(request.purpose().trim());
@@ -78,6 +88,20 @@ public class BookingService {
                 ? "Recurring booking requests submitted successfully"
                 : "Booking request submitted successfully";
         return new BookingBatchResponse(message, createdBookings);
+    }
+
+    @Transactional(readOnly = true)
+    public StudentVerificationResponse verifyStudentForAdmin(
+            String requesterName,
+            String requesterEmail,
+            String requesterItNumber) {
+        UserAccount student = findActiveStudentOrThrow(requesterName, requesterEmail, requesterItNumber);
+        return new StudentVerificationResponse(
+                "Student verified successfully",
+                student.getFullName().trim(),
+                student.getEmail(),
+                student.getItNumber(),
+                student.getRole());
     }
 
     @Transactional(readOnly = true)
@@ -401,6 +425,30 @@ public class BookingService {
 
     private String normalizeItNumber(String itNumber) {
         return itNumber.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private UserAccount findActiveStudentOrThrow(String requesterName, String requesterEmail,
+            String requesterItNumber) {
+        String normalizedName = requesterName.trim();
+        String normalizedEmail = normalizeEmail(requesterEmail);
+        String normalizedItNumber = normalizeItNumber(requesterItNumber);
+
+        UserAccount userAccount = userAccountRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElseThrow(() -> new BookingException("Student not found in the database", HttpStatus.NOT_FOUND));
+
+        if (!userAccount.getFullName().trim().equalsIgnoreCase(normalizedName)) {
+            throw new BookingException("Student name does not match the database record", HttpStatus.CONFLICT);
+        }
+
+        if (!userAccount.getItNumber().equalsIgnoreCase(normalizedItNumber)) {
+            throw new BookingException("Student email and IT number do not match", HttpStatus.CONFLICT);
+        }
+
+        if (userAccount.getRole() == null || !"STUDENT".equalsIgnoreCase(userAccount.getRole().trim())) {
+            throw new BookingException("Only student accounts can be booked by admin", HttpStatus.FORBIDDEN);
+        }
+
+        return userAccount;
     }
 
     private String trimToNull(String value, String fallback) {

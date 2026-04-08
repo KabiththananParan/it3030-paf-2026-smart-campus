@@ -1,23 +1,62 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { approveBooking, getBookings, rejectBooking } from '../api/bookingApi.js'
+import {
+  approveBooking,
+  cancelBooking,
+  createBooking,
+  deleteBooking,
+  getBookings,
+  rejectBooking,
+  updateBooking,
+  verifyStudentForAdmin,
+} from '../api/bookingApi.js'
+
+const statusBadge = {
+  PENDING: 'bg-amber-100 text-amber-800',
+  APPROVED: 'bg-emerald-100 text-emerald-800',
+  REJECTED: 'bg-rose-100 text-rose-800',
+  CANCELLED: 'bg-slate-200 text-slate-700',
+}
+
+const initialAdminCreate = {
+  requesterName: '',
+  requesterEmail: '',
+  requesterItNumber: '',
+  resourceType: 'LECTURE_HALL',
+  resourceName: '',
+  purpose: '',
+  bookingDate: '',
+  startTime: '',
+  endTime: '',
+  recurrenceCount: 1,
+}
+
+const resourceTypes = ['LECTURE_HALL', 'LAB', 'MEETING_ROOM', 'EQUIPMENT']
 
 const BookingApprovalPage = () => {
   const savedUser = localStorage.getItem('auth_user')
-  const [pendingBookings, setPendingBookings] = useState([])
+  const [bookings, setBookings] = useState([])
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [query, setQuery] = useState('')
+  const [adminCreateForm, setAdminCreateForm] = useState(initialAdminCreate)
+  const [studentVerified, setStudentVerified] = useState(false)
+  const [verifyingStudent, setVerifyingStudent] = useState(false)
+  const [verifiedStudentKey, setVerifiedStudentKey] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState(null)
   const user = useMemo(() => (savedUser ? JSON.parse(savedUser) : null), [savedUser])
   const isAdmin = (user?.role || '').toUpperCase() === 'ADMIN'
 
-  const loadPending = useCallback(async () => {
+  const loadBookings = useCallback(async () => {
     if (!isAdmin) {
       return
     }
 
     try {
-      const data = await getBookings({ status: 'PENDING' })
-      setPendingBookings(data)
+      const data = await getBookings()
+      setBookings(data)
     } catch (loadError) {
       setError(loadError.message)
     }
@@ -26,26 +65,18 @@ const BookingApprovalPage = () => {
   useEffect(() => {
     if (isAdmin) {
       const timer = setTimeout(() => {
-        void loadPending()
+        void loadBookings()
       }, 0)
       return () => clearTimeout(timer)
     }
-  }, [isAdmin, loadPending])
-
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/bookings/my" replace />
-  }
+  }, [isAdmin, loadBookings])
 
   const onApprove = async (id) => {
     const note = window.prompt('Approval note (optional)') || ''
     try {
       await approveBooking(id, note)
       setMessage('Booking approved.')
-      loadPending()
+      void loadBookings()
     } catch (approveError) {
       setError(approveError.message)
     }
@@ -56,10 +87,187 @@ const BookingApprovalPage = () => {
     try {
       await rejectBooking(id, note)
       setMessage('Booking rejected.')
-      loadPending()
+      void loadBookings()
     } catch (rejectError) {
       setError(rejectError.message)
     }
+  }
+
+  const getStudentIdentityKey = (form) => {
+    const name = form.requesterName.trim().toLowerCase()
+    const email = form.requesterEmail.trim().toLowerCase()
+    const itNumber = form.requesterItNumber.trim().toUpperCase()
+    return `${name}|${email}|${itNumber}`
+  }
+
+  const onCreateForStudent = async (event) => {
+    event.preventDefault()
+    setMessage('')
+    setError('')
+
+    if (!studentVerified) {
+      setError('Please verify student details before creating booking.')
+      return
+    }
+
+    try {
+      const response = await createBooking({
+        ...adminCreateForm,
+        requesterName: adminCreateForm.requesterName.trim(),
+        requesterEmail: adminCreateForm.requesterEmail.trim(),
+        requesterItNumber: adminCreateForm.requesterItNumber.trim(),
+        resourceName: adminCreateForm.resourceName.trim(),
+        purpose: adminCreateForm.purpose.trim(),
+        recurrenceCount: Number(adminCreateForm.recurrenceCount),
+      })
+      const createdCount = Array.isArray(response?.createdBookings) ? response.createdBookings.length : 0
+      const successMessage = response?.message || 'Booking created successfully.'
+      setMessage(createdCount > 0 ? `${successMessage} (${createdCount} booking${createdCount > 1 ? 's' : ''})` : successMessage)
+      setAdminCreateForm(initialAdminCreate)
+      setStudentVerified(false)
+      setVerifiedStudentKey('')
+      void loadBookings()
+    } catch (createError) {
+      setError(`Booking creation unsuccessful: ${createError.message}`)
+    }
+  }
+
+  const onVerifyStudent = async ({ auto = false } = {}) => {
+    setMessage('')
+    setError('')
+
+    const requesterName = adminCreateForm.requesterName.trim()
+    const requesterEmail = adminCreateForm.requesterEmail.trim()
+    const requesterItNumber = adminCreateForm.requesterItNumber.trim()
+
+    if (!requesterName || !requesterEmail || !requesterItNumber) {
+      setStudentVerified(false)
+      if (!auto) {
+        setError('Enter student name, email, and IT number before verification.')
+      }
+      return
+    }
+
+    const currentIdentityKey = getStudentIdentityKey(adminCreateForm)
+    if (auto && (verifyingStudent || (studentVerified && verifiedStudentKey === currentIdentityKey))) {
+      return
+    }
+
+    try {
+      setVerifyingStudent(true)
+      const data = await verifyStudentForAdmin({ requesterName, requesterEmail, requesterItNumber })
+      setAdminCreateForm((prev) => ({
+        ...prev,
+        requesterName: data.fullName || requesterName,
+        requesterEmail: data.email || requesterEmail,
+        requesterItNumber: data.itNumber || requesterItNumber,
+      }))
+      const verifiedKey = getStudentIdentityKey({
+        requesterName: data.fullName || requesterName,
+        requesterEmail: data.email || requesterEmail,
+        requesterItNumber: data.itNumber || requesterItNumber,
+      })
+      setVerifiedStudentKey(verifiedKey)
+      setStudentVerified(true)
+      setMessage(auto ? 'Student auto-verified successfully.' : (data.message || 'Student verified successfully.'))
+    } catch (verifyError) {
+      setStudentVerified(false)
+      setVerifiedStudentKey('')
+      setError(`Student verification unsuccessful: ${verifyError.message}`)
+    } finally {
+      setVerifyingStudent(false)
+    }
+  }
+
+  const onStudentIdentityChange = (field, value) => {
+    setStudentVerified(false)
+    setVerifiedStudentKey('')
+    setAdminCreateForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const onStudentIdentityBlur = () => {
+    void onVerifyStudent({ auto: true })
+  }
+
+  const onEditClick = (booking) => {
+    setEditingId(booking.id)
+    setEditForm({
+      resourceType: booking.resourceType,
+      resourceName: booking.resourceName,
+      purpose: booking.purpose,
+      bookingDate: booking.bookingDate,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+    })
+  }
+
+  const onEditSave = async (booking) => {
+    if (!editForm) {
+      return
+    }
+
+    try {
+      await updateBooking(booking.id, booking.requesterEmail, editForm)
+      setMessage('Booking updated by admin.')
+      setEditingId(null)
+      setEditForm(null)
+      void loadBookings()
+    } catch (updateError) {
+      setError(updateError.message)
+    }
+  }
+
+  const onCancel = async (booking) => {
+    try {
+      await cancelBooking(booking.id, booking.requesterEmail)
+      setMessage('Booking cancelled by admin.')
+      void loadBookings()
+    } catch (cancelError) {
+      setError(cancelError.message)
+    }
+  }
+
+  const onDelete = async (booking) => {
+    try {
+      await deleteBooking(booking.id, booking.requesterEmail)
+      setMessage('Booking deleted by admin.')
+      void loadBookings()
+    } catch (deleteError) {
+      setError(deleteError.message)
+    }
+  }
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      const matchesStatus = statusFilter === 'ALL' || booking.status === statusFilter
+      const search = query.trim().toLowerCase()
+      const matchesQuery =
+        search.length === 0 ||
+        booking.resourceName.toLowerCase().includes(search) ||
+        booking.purpose.toLowerCase().includes(search) ||
+        booking.requesterName.toLowerCase().includes(search) ||
+        booking.requesterEmail.toLowerCase().includes(search)
+
+      return matchesStatus && matchesQuery
+    })
+  }, [bookings, query, statusFilter])
+
+  const stats = useMemo(() => {
+    return {
+      total: bookings.length,
+      pending: bookings.filter((booking) => booking.status === 'PENDING').length,
+      approved: bookings.filter((booking) => booking.status === 'APPROVED').length,
+      rejected: bookings.filter((booking) => booking.status === 'REJECTED').length,
+      cancelled: bookings.filter((booking) => booking.status === 'CANCELLED').length,
+    }
+  }, [bookings])
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/bookings/my" replace />
   }
 
   return (
@@ -76,24 +284,95 @@ const BookingApprovalPage = () => {
         {message ? <p className="mb-3 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}
         {error ? <p className="mb-3 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
 
+        <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="rounded-xl bg-slate-100 p-3 text-center"><p className="text-xs text-slate-500">Total</p><p className="text-lg font-bold text-slate-900">{stats.total}</p></div>
+          <div className="rounded-xl bg-amber-100 p-3 text-center"><p className="text-xs text-amber-700">Pending</p><p className="text-lg font-bold text-amber-900">{stats.pending}</p></div>
+          <div className="rounded-xl bg-emerald-100 p-3 text-center"><p className="text-xs text-emerald-700">Approved</p><p className="text-lg font-bold text-emerald-900">{stats.approved}</p></div>
+          <div className="rounded-xl bg-rose-100 p-3 text-center"><p className="text-xs text-rose-700">Rejected</p><p className="text-lg font-bold text-rose-900">{stats.rejected}</p></div>
+          <div className="rounded-xl bg-slate-200 p-3 text-center"><p className="text-xs text-slate-600">Cancelled</p><p className="text-lg font-bold text-slate-800">{stats.cancelled}</p></div>
+        </div>
+
+        <form onSubmit={onCreateForStudent} className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-3 text-sm font-semibold text-slate-900">Create Booking For Student</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <input required value={adminCreateForm.requesterName} onChange={(event) => onStudentIdentityChange('requesterName', event.target.value)} onBlur={onStudentIdentityBlur} placeholder="Student Name" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input required value={adminCreateForm.requesterEmail} onChange={(event) => onStudentIdentityChange('requesterEmail', event.target.value)} onBlur={onStudentIdentityBlur} placeholder="Student Email" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input required value={adminCreateForm.requesterItNumber} onChange={(event) => onStudentIdentityChange('requesterItNumber', event.target.value)} onBlur={onStudentIdentityBlur} placeholder="Student IT Number" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <select value={adminCreateForm.resourceType} onChange={(event) => setAdminCreateForm((prev) => ({ ...prev, resourceType: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              {resourceTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
+            <input required value={adminCreateForm.resourceName} onChange={(event) => setAdminCreateForm((prev) => ({ ...prev, resourceName: event.target.value }))} placeholder="Resource Name" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input required value={adminCreateForm.purpose} onChange={(event) => setAdminCreateForm((prev) => ({ ...prev, purpose: event.target.value }))} placeholder="Purpose" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input required type="date" value={adminCreateForm.bookingDate} onChange={(event) => setAdminCreateForm((prev) => ({ ...prev, bookingDate: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input required type="time" value={adminCreateForm.startTime} onChange={(event) => setAdminCreateForm((prev) => ({ ...prev, startTime: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input required type="time" value={adminCreateForm.endTime} onChange={(event) => setAdminCreateForm((prev) => ({ ...prev, endTime: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input min="1" max="12" type="number" value={adminCreateForm.recurrenceCount} onChange={(event) => setAdminCreateForm((prev) => ({ ...prev, recurrenceCount: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void onVerifyStudent()} disabled={verifyingStudent} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
+              {verifyingStudent ? 'Verifying...' : 'Verify Student'}
+            </button>
+            <button disabled={!studentVerified} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">Create As Admin</button>
+            <span className={`text-xs font-semibold ${studentVerified ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {studentVerified ? 'Student verified' : 'Verification required before create'}
+            </span>
+          </div>
+        </form>
+
+        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by student, resource, purpose" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="ALL">All statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+          <button onClick={() => void loadBookings()} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Refresh</button>
+        </div>
+
         <div className="space-y-3">
-          {pendingBookings.map((booking) => (
+          {filteredBookings.map((booking) => (
             <div key={booking.id} className="rounded-xl border border-slate-200 p-4">
-              <p className="font-bold text-slate-900">{booking.resourceName}</p>
+              <p className="font-bold text-slate-900">
+                {booking.resourceName}
+                <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge[booking.status] || 'bg-slate-100 text-slate-700'}`}>{booking.status}</span>
+              </p>
               <p className="text-sm text-slate-600">{booking.bookingDate} | {booking.startTime} - {booking.endTime}</p>
               <p className="text-sm text-slate-700">{booking.purpose}</p>
               <p className="text-xs text-slate-500">{booking.requesterName} ({booking.requesterItNumber})</p>
+              <p className="text-xs text-slate-500">{booking.requesterEmail}</p>
 
               <div className="mt-3 flex gap-2">
-                <button onClick={() => onApprove(booking.id)} className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700">Approve</button>
-                <button onClick={() => onReject(booking.id)} className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-700">Reject</button>
+                {booking.status === 'PENDING' ? <button onClick={() => onApprove(booking.id)} className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700">Approve</button> : null}
+                {booking.status === 'PENDING' ? <button onClick={() => onReject(booking.id)} className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-semibold text-amber-700">Reject</button> : null}
+                {booking.status === 'PENDING' ? <button onClick={() => onEditClick(booking)} className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold">Edit</button> : null}
+                {(booking.status === 'PENDING' || booking.status === 'APPROVED') ? <button onClick={() => onCancel(booking)} className="rounded-lg border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700">Cancel</button> : null}
+                {(booking.status === 'REJECTED' || booking.status === 'CANCELLED') ? <button onClick={() => onDelete(booking)} className="rounded-lg border border-slate-400 px-3 py-1 text-xs font-semibold text-slate-700">Delete</button> : null}
               </div>
+
+              {editingId === booking.id && editForm ? (
+                <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+                  <input value={editForm.resourceName} onChange={(event) => setEditForm((prev) => ({ ...prev, resourceName: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Resource" />
+                  <input value={editForm.resourceType} onChange={(event) => setEditForm((prev) => ({ ...prev, resourceType: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Type" />
+                  <input type="date" value={editForm.bookingDate} onChange={(event) => setEditForm((prev) => ({ ...prev, bookingDate: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="time" value={editForm.startTime} onChange={(event) => setEditForm((prev) => ({ ...prev, startTime: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                    <input type="time" value={editForm.endTime} onChange={(event) => setEditForm((prev) => ({ ...prev, endTime: event.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                  </div>
+                  <textarea value={editForm.purpose} onChange={(event) => setEditForm((prev) => ({ ...prev, purpose: event.target.value }))} rows={2} className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Purpose" />
+                  <div className="sm:col-span-2 flex gap-2">
+                    <button onClick={() => onEditSave(booking)} className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white">Save</button>
+                    <button onClick={() => { setEditingId(null); setEditForm(null) }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold">Close</button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ))}
 
-          {pendingBookings.length === 0 ? (
+          {filteredBookings.length === 0 ? (
             <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-              No pending requests right now.
+              No bookings found for your current filters.
             </p>
           ) : null}
         </div>

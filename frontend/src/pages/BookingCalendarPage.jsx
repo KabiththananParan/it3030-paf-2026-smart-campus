@@ -10,6 +10,10 @@ const BookingCalendarPage = () => {
   const user = useMemo(() => (savedUser ? JSON.parse(savedUser) : null), [savedUser])
   const isAdmin = (user?.role || '').toUpperCase() === 'ADMIN'
 
+  const buildQrImageUrl = (token) => {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(token)}`
+  }
+
   const loadCalendar = useCallback(async () => {
     if (!user) {
       return
@@ -87,6 +91,19 @@ const BookingCalendarPage = () => {
                   <div key={booking.id} className="rounded-lg bg-slate-50 p-3 text-sm">
                     <p className="font-semibold text-slate-900">{booking.startTime} - {booking.endTime} | {booking.resourceName}</p>
                     <p className="text-slate-600">{booking.requesterName} | {booking.status}</p>
+                    {booking.status === 'APPROVED' && booking.qrToken ? (
+                      <div className="mt-2 flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2">
+                        <img
+                          src={buildQrImageUrl(booking.qrToken)}
+                          alt="QR code for check-in"
+                          className="h-16 w-16 rounded-md border border-emerald-200 bg-white p-1"
+                        />
+                        <div className="text-xs text-emerald-800">
+                          <p className="font-semibold">QR Check-in Ready</p>
+                          <p>Use this token for verification.</p>
+                        </div>
+                      </div>
+                    ) : null}
                     {booking.status === 'APPROVED' && booking.qrToken && !booking.checkedIn ? (
                       <button onClick={() => onCheckIn(booking)} className="mt-2 rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700">QR Check-in</button>
                     ) : null}

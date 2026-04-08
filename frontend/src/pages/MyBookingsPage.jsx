@@ -18,6 +18,10 @@ const statusBadge = {
   CANCELLED: 'bg-slate-200 text-slate-700',
 }
 
+const buildQrImageUrl = (token) => {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(token)}`
+}
+
 const MyBookingsPage = () => {
   const savedUser = localStorage.getItem('auth_user')
   const [bookings, setBookings] = useState([])
@@ -128,6 +132,55 @@ const MyBookingsPage = () => {
     })
   }, [bookings, query, statusFilter])
 
+  const exportBookingsCsv = () => {
+    if (filteredBookings.length === 0) {
+      setError('No bookings available to export.')
+      return
+    }
+
+    const headers = [
+      'Booking ID',
+      'Resource Name',
+      'Resource Type',
+      'Date',
+      'Start Time',
+      'End Time',
+      'Status',
+      'Purpose',
+      'Admin Note',
+    ]
+
+    const escapeCsv = (value) => {
+      const text = String(value ?? '')
+      return `"${text.replaceAll('"', '""')}"`
+    }
+
+    const rows = filteredBookings.map((booking) => [
+      booking.id,
+      booking.resourceName,
+      booking.resourceType,
+      booking.bookingDate,
+      booking.startTime,
+      booking.endTime,
+      booking.status,
+      booking.purpose,
+      booking.adminNote || '',
+    ])
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `my-bookings-${new Date().toISOString().slice(0, 10)}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    setMessage('CSV export downloaded successfully.')
+  }
+
   if (!user) {
     return <Navigate to="/login" replace />
   }
@@ -186,6 +239,12 @@ const MyBookingsPage = () => {
           >
             Refresh
           </button>
+          <button
+            onClick={exportBookingsCsv}
+            className="rounded-xl border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-700"
+          >
+            Export CSV
+          </button>
         </div>
 
         {upcoming.length > 0 ? (
@@ -226,7 +285,20 @@ const MyBookingsPage = () => {
                   <button onClick={() => onDelete(booking.id)} className="rounded-lg border border-slate-400 px-3 py-1 text-xs font-semibold text-slate-700">Delete</button>
                 ) : null}
                 {booking.status === 'APPROVED' && booking.qrToken ? (
-                  <span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">QR Token: {booking.qrToken.slice(0, 8)}...</span>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">QR Check-in</p>
+                    <div className="mt-2 flex items-center gap-3">
+                      <img
+                        src={buildQrImageUrl(booking.qrToken)}
+                        alt="Booking QR code"
+                        className="h-20 w-20 rounded-lg border border-emerald-200 bg-white p-1"
+                      />
+                      <div>
+                        <p className="text-xs text-emerald-700">Scan this code at check-in.</p>
+                        <p className="mt-1 text-[11px] text-slate-500">Token: {booking.qrToken.slice(0, 10)}...</p>
+                      </div>
+                    </div>
+                  </div>
                 ) : null}
               </div>
 
