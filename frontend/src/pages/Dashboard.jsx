@@ -56,7 +56,7 @@ const Dashboard = () => {
 
           <nav className="mt-8 space-y-2 text-sm font-semibold text-slate-600">
             <button className="w-full rounded-xl bg-slate-900 px-4 py-3 text-left text-white">Dashboard</button>
-            <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">Bookings</button>
+            <button onClick={() => navigate('/bookings')} className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">Bookings</button>
             <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">Incidents</button>
             <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">Assets</button>
             <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">Audit Logs</button>
@@ -87,7 +87,7 @@ const Dashboard = () => {
               <h1 className="text-3xl font-black text-slate-900">Hello, {userItNumber}</h1>
               <p className="text-sm text-slate-500">Facility bookings and maintenance operations at a glance.</p>
             </div>
-            <button className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white">Add New Request</button>
+            <button onClick={() => navigate('/bookings')} className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white">Add New Request</button>
           </div>
 
           <section className="mt-6 grid gap-4 md:grid-cols-3">
