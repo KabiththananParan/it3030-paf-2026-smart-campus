@@ -1,13 +1,63 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Users, Clock, Info, Laptop, Presentation, Briefcase, ChevronLeft, CalendarDays } from 'lucide-react';
+import {
+    MapPin, Users, Info, Laptop,
+    Presentation, Briefcase, ChevronLeft, CalendarDays, Loader2
+} from 'lucide-react';
 import resourceApi from '../../api/resourceApi';
+
+// Import the Innovative Component
+import ResourceCalendar from '../../components/ui/ResourceCalendar';
 
 const ResourceDetailsPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [resource, setResource] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    // --- SMART STATUS CALCULATION ENGINE ---
+    const getSmartStatus = (dbStatus, availabilityWindow) => {
+        if (dbStatus === 'OUT_OF_SERVICE') return { label: 'OUT OF SERVICE', color: 'bg-rose-500' };
+
+        // If status is AUTO, ACTIVE, or BUSY, we check the clock
+        if (!availabilityWindow) return { label: 'CLOSED', color: 'bg-slate-500' };
+
+        const win = availabilityWindow.toUpperCase().trim();
+        const now = new Date();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const currentDayName = days[now.getDay()].toUpperCase();
+        const currentHourValue = now.getHours() + (now.getMinutes() / 60);
+
+        // 1. Time Check
+        const timeMatch = win.match(/(\d{1,2}[:.]\d{2})\s*[-TO/]\s*(\d{1,2}[:.]\d{2})/);
+        let isTimeAllowed = false;
+        if (timeMatch) {
+            const startStr = timeMatch[1].replace('.', ':');
+            const endStr = timeMatch[2].replace('.', ':');
+            const [sH, sM] = startStr.split(':').map(Number);
+            const [eH, eM] = endStr.split(':').map(Number);
+            isTimeAllowed = currentHourValue >= (sH + sM / 60) && currentHourValue < (eH + eM / 60);
+        }
+
+        // 2. Day Check
+        const dayPart = win.split(/\d/)[0].trim();
+        let isDayAllowed = false;
+        if (dayPart.includes("DAILY")) {
+            isDayAllowed = true;
+        } else if (dayPart.includes('-') || dayPart.includes('TO')) {
+            const parts = dayPart.split(/[-]|TO/);
+            const startIdx = days.map(d => d.toUpperCase()).indexOf(parts[0].trim());
+            const endIdx = days.map(d => d.toUpperCase()).indexOf(parts[1].trim());
+            const currentIdx = now.getDay();
+            isDayAllowed = currentIdx >= startIdx && currentIdx <= endIdx;
+        } else {
+            isDayAllowed = dayPart.includes(currentDayName);
+        }
+
+        return (isDayAllowed && isTimeAllowed)
+            ? { label: 'AVAILABLE NOW', color: 'bg-[#008080]' }
+            : { label: 'BUSY / CLOSED', color: 'bg-amber-500' };
+    };
 
     useEffect(() => {
         resourceApi.getResourceById(id)
@@ -21,92 +71,127 @@ const ResourceDetailsPage = () => {
             });
     }, [id]);
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-slate-400">Loading Resource Details...</div>;
-    if (!resource) return <div className="min-h-screen flex items-center justify-center font-bold text-red-400">Resource not found.</div>;
+    if (loading) return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+            <Loader2 className="animate-spin text-[#003366]" size={40} />
+        </div>
+    );
+
+    if (!resource) return (
+        <div className="min-h-screen flex items-center justify-center font-bold text-red-400 uppercase tracking-widest">
+            Resource not found.
+        </div>
+    );
+
+    // Calculate the live status based on current time
+    const liveStatus = getSmartStatus(resource.status, resource.availability_Windows);
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-20 font-sans">
-            {/* Header / Back Navigation */}
-            <div style={{ backgroundColor: '#003366' }} className="py-8 px-6 text-white mb-12">
-                <div className="max-w-4xl mx-auto flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                        <ChevronLeft size={24} />
-                    </button>
-                    <h1 className="text-2xl font-black tracking-tight">Resource Specification</h1>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 font-sans">
+            <div className="max-w-5xl mx-auto">
 
-            <main className="max-w-4xl mx-auto px-6">
-                <div className="bg-white rounded-[3rem] shadow-xl overflow-hidden border border-slate-100">
-                    {/* Decorative Top Bar */}
-                    <div className="h-4 bg-[#008080]"></div>
+                {/* Back Navigation */}
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-slate-500 hover:text-[#003366] font-bold text-sm mb-8 transition-colors"
+                >
+                    <ChevronLeft size={18} /> Back to Catalogue
+                </button>
 
-                    <div className="p-12">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                            <div className="flex items-center gap-5">
-                                <div className="p-5 bg-slate-50 rounded-3xl text-[#003366]">
-                                    {resource.type === 'LAB' ? <Laptop size={40} /> : resource.type === 'EQUIPMENT' ? <Briefcase size={40} /> : <Presentation size={40} />}
-                                </div>
-                                <div>
-                                    <h2 className="text-4xl font-black text-slate-900 leading-tight">{resource.name}</h2>
-                                    <span className="px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                        {resource.status}
-                                    </span>
-                                </div>
+                <div className="bg-white rounded-[3rem] shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100">
+
+                    {/* Header Block */}
+                    <div className="bg-[#003366] p-10 md:p-12 text-white flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-6">
+                            <div className="p-5 bg-white/10 backdrop-blur-md rounded-3xl text-[#008080]">
+                                {resource.type === 'LAB' ? <Laptop size={42} /> :
+                                    resource.type === 'EQUIPMENT' ? <Briefcase size={42} /> :
+                                        <Presentation size={42} />}
                             </div>
-
-                            <div className="text-right">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Category</p>
-                                <p className="text-lg font-bold text-[#008080]">{resource.type.replace('_', ' ')}</p>
+                            <div>
+                                <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-tight">
+                                    {resource.name}
+                                </h1>
+                                <div className="flex items-center gap-3 mt-2">
+                                    {/* UPDATED: Dynamic Live Status Badge */}
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase text-white shadow-sm ${liveStatus.color}`}>
+                                        {liveStatus.label}
+                                    </span>
+                                    <p className="text-blue-100/40 text-[10px] font-bold uppercase tracking-widest">ID: {id}</p>
+                                </div>
                             </div>
                         </div>
+                        <div className="text-left md:text-right">
+                            <p className="text-[10px] font-black text-blue-200/50 uppercase tracking-[0.2em] mb-1">Resource Category</p>
+                            <p className="text-xl font-bold text-[#008080]">{resource.type.replace('_', ' ')}</p>
+                        </div>
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                            <div className="space-y-8">
-                                <div className="flex gap-4">
-                                    <div className="mt-1 p-2 bg-slate-50 rounded-lg text-slate-400"><MapPin size={20} /></div>
+                    <div className="p-10 md:p-14">
+                        {/* Main Grid: Left Specs, Right Calendar */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+
+                            {/* Left Column: Metadata Specs */}
+                            <div className="lg:col-span-1 space-y-10">
+                                <div className="flex gap-5">
+                                    <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl text-slate-400">
+                                        <MapPin size={24} />
+                                    </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Campus Location</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Location</p>
                                         <p className="text-lg font-bold text-slate-700">{resource.location}</p>
                                     </div>
                                 </div>
-                                <div className="flex gap-4">
-                                    <div className="mt-1 p-2 bg-slate-50 rounded-lg text-slate-400"><Users size={20} /></div>
+
+                                <div className="flex gap-5">
+                                    <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl text-slate-400">
+                                        <Users size={24} />
+                                    </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seating Capacity</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Max Capacity</p>
                                         <p className="text-lg font-bold text-slate-700">{resource.capacity} Students</p>
                                     </div>
                                 </div>
+
+                                <div className="flex gap-5">
+                                    <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl text-slate-400">
+                                        <Info size={24} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">System Mode</p>
+                                        <p className="text-lg font-bold text-slate-700 capitalize">
+                                            {resource.status === 'AUTO' ? 'Automated Scheduling' : 'Manual Override'}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="space-y-8">
-                                <div className="flex gap-4">
-                                    <div className="mt-1 p-2 bg-slate-50 rounded-lg text-slate-400"><Clock size={20} /></div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Availability Window</p>
-                                        <p className="text-lg font-bold text-slate-700">{resource.availability_Windows || "Standard Hours"}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-4">
-                                    <div className="mt-1 p-2 bg-slate-50 rounded-lg text-slate-400"><Info size={20} /></div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Technical Status</p>
-                                        <p className="text-lg font-bold text-slate-700 capitalize">{resource.status.toLowerCase()}</p>
-                                    </div>
-                                </div>
+                            {/* Right Column: Innovative Calendar View */}
+                            <div className="lg:col-span-2">
+                                <ResourceCalendar availabilityWindow={resource.availability_Windows} />
                             </div>
                         </div>
 
-                        {/* Action Button */}
+                        {/* Footer Action Area */}
                         <div className="mt-16 pt-10 border-t border-slate-50">
-                            <button className="w-full flex items-center justify-center gap-4 py-5 rounded-2xl bg-[#003366] text-white font-black text-sm uppercase tracking-[0.25em] shadow-2xl hover:brightness-110 hover:-translate-y-1 transition-all duration-300">
+                            {/* Disable button if out of service */}
+                            <button
+                                disabled={resource.status === 'OUT_OF_SERVICE'}
+                                className={`w-full flex items-center justify-center gap-4 py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-2xl transition-all duration-300 ${resource.status === 'OUT_OF_SERVICE'
+                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                                        : 'bg-[#003366] text-white shadow-blue-900/20 hover:brightness-110 hover:-translate-y-1'
+                                    }`}
+                            >
                                 <CalendarDays size={20} />
-                                Confirm Reservation
+                                {resource.status === 'OUT_OF_SERVICE' ? 'Resource Unavailable' : 'Confirm Reservation'}
                             </button>
+                            <p className="text-center text-slate-300 text-[9px] font-bold uppercase tracking-[0.2em] mt-8">
+                                Smart Campus Resource Management System • Module A
+                            </p>
                         </div>
                     </div>
                 </div>
-            </main>
+            </div>
         </div>
     );
 };
