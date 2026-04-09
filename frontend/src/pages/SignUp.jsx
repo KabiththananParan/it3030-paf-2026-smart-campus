@@ -10,7 +10,7 @@ const initialForm = {
   confirmPassword: '',
 }
 
-const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 const itNumberRegex = /^IT\d{8}$/
 
 const SignUp = () => {
@@ -49,8 +49,8 @@ const SignUp = () => {
         if (!value.trim()) {
           return 'Email is required.'
         }
-        if (!gmailRegex.test(value.trim())) {
-          return 'Use a valid @gmail.com email address.'
+        if (!emailRegex.test(value.trim())) {
+          return 'Use a valid email address.'
         }
         return ''
       case 'password':
@@ -278,11 +278,13 @@ const SignUp = () => {
               <input
                 name="email"
                 type="email"
-                placeholder="student@gmail.com"
+                placeholder="name@smartcampus.com"
                 className="w-full bg-transparent font-medium text-blue-950 outline-none placeholder:text-gray-500"
                 value={formData.email}
                 onChange={handleChange}
                 onBlur={handleBlur}
+                pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+                title="Use a valid email address"
               />
               {isFieldValid('email') ? (
                 <svg className="ml-2 h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

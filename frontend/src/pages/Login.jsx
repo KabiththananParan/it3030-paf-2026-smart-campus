@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import logo from '../assets/edutrack.png'
+import { getDashboardPath, normalizeRole } from '../auth/roles.js'
 
 const Login = () => {
   const navigate = useNavigate()
@@ -37,19 +38,21 @@ const Login = () => {
 
       const fallbackItNumber = localStorage.getItem('auth_it_number')
       const resolvedItNumber = data.itNumber || data.itNo || fallbackItNumber || 'IT Number'
+      const normalizedRole = normalizeRole(data.role)
 
       localStorage.setItem('auth_user', JSON.stringify({
         email: data.email,
         itNumber: resolvedItNumber,
         itNo: resolvedItNumber,
         fullName: data.fullName,
-        role: data.role,
+        role: normalizedRole,
       }))
 
       if (resolvedItNumber && resolvedItNumber !== 'IT Number') {
         localStorage.setItem('auth_it_number', resolvedItNumber)
       }
-      navigate('/dashboard', { replace: true })
+      const targetPath = getDashboardPath(normalizedRole)
+      navigate(targetPath, { replace: true })
     } catch {
       setSubmitMessage('Cannot connect to server. Please start backend and try again.')
     } finally {
@@ -123,10 +126,10 @@ const Login = () => {
               <input
                 id="email"
                 type="email"
-                placeholder="student@gmail.com"
+                placeholder="name@smartcampus.com"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none ring-orange-200 transition focus:ring-4"
-                pattern="^[A-Za-z0-9._%+-]+@gmail\.com$"
-                title="Use your @gmail.com email address"
+                pattern="^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+                title="Use a valid email address"
                 required
                 value={formData.email}
                 onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}

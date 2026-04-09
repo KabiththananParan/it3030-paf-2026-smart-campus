@@ -1,6 +1,7 @@
 package com.edutrack.backend.auth.controller;
 
 import com.edutrack.backend.auth.dto.AuthResponse;
+import com.edutrack.backend.auth.dto.AdminCreateAccountRequest;
 import com.edutrack.backend.auth.dto.ForgotPasswordRequest;
 import com.edutrack.backend.auth.dto.LoginRequest;
 import com.edutrack.backend.auth.dto.SignUpRequest;
@@ -39,5 +40,11 @@ public class AuthController {
     public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         AuthResponse response = authService.forgotPassword(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/admin/users")
+    public ResponseEntity<AuthResponse> createAdminAccount(@Valid @RequestBody AdminCreateAccountRequest request) {
+        AuthResponse response = authService.createAccountByAdmin(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

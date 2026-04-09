@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-public record SignUpRequest(
+public record AdminCreateAccountRequest(
         @NotBlank(message = "Full name is required")
         @Size(min = 3, max = 120, message = "Full name must be between 3 and 120 characters")
         String fullName,
@@ -24,7 +24,8 @@ public record SignUpRequest(
         )
         String password,
 
-        @NotBlank(message = "Confirm password is required")
-        String confirmPassword
+        @NotBlank(message = "Role is required")
+        @Pattern(regexp = "^(ADMIN|MANAGER|TECHNICIAN)$", message = "Role must be ADMIN, MANAGER, or TECHNICIAN")
+        String role
 ) {
 }
