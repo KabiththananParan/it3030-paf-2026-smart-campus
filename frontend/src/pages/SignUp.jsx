@@ -2,7 +2,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import logo from '../assets/edutrack.png'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'
+const DEFAULT_API_BASE = `${window.location.protocol}//${window.location.hostname}:8081`
+const API_BASE = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE
 
 const initialForm = {
   name: '',

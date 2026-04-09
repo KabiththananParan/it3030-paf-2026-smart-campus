@@ -1,4 +1,5 @@
-const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'}/api/bookings`
+const defaultApiBase = `${window.location.protocol}//${window.location.hostname}:8081`
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL || defaultApiBase}/api/bookings`
 
 const parseResponse = async (response) => {
   const data = await response.json().catch(() => null)
