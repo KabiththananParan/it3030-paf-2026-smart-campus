@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getBookingByQrToken } from '../api/bookingApi.js'
 import logoUrl from '../assets/edutrack.png'
+import { resolvePublicAppBase } from '../utils/publicAppUrl.js'
 
 const cardLabel = 'text-xs font-semibold uppercase tracking-wide text-slate-500'
 const cardValue = 'mt-1 text-sm font-semibold text-slate-900'
@@ -58,7 +59,7 @@ const BookingQrDetailsPage = () => {
     }
 
     try {
-      const appBase = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin
+      const appBase = resolvePublicAppBase()
       const scanUrl = `${appBase}/bookings/scan/${encodeURIComponent(booking.qrToken || token || '')}`
       const qrPreviewUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(scanUrl)}`
 
