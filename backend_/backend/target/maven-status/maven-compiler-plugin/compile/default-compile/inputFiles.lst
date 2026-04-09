@@ -1,0 +1,15 @@
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\config\AdminAccountInitializer.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\config\RoleNames.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\config\SecurityConfig.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\controller\AuthController.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\dto\AdminCreateAccountRequest.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\dto\AuthResponse.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\dto\ForgotPasswordRequest.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\dto\LoginRequest.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\dto\SignUpRequest.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\entity\UserAccount.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\exception\AuthException.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\exception\GlobalExceptionHandler.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\repository\UserAccountRepository.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\auth\service\AuthService.java
+C:\Users\Kabi\Desktop\it3030-paf-2026-smart-campus-main\it3030-paf-2026-smart-campus-main\backend_\backend\src\main\java\com\edutrack\backend\BackendApplication.java
