@@ -37,43 +37,50 @@ const ResourceListPage = () => {
         name: '', type: '', location: '', minCapacity: '', status: ''
     });
 
-    const isCurrentlyAvailable = (availabilityWindow) => {
+    const hasAvailableSlots = (availabilityWindow) => {
         if (!availabilityWindow) return false;
         const win = availabilityWindow.toUpperCase().trim();
-        const now = new Date();
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const currentDayName = days[now.getDay()].toUpperCase();
-        const currentHourValue = now.getHours() + (now.getMinutes() / 60);
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-        const timeMatch = win.match(/(\d{1,2}[:.]\d{2})\s*[-TO/]\s*(\d{1,2}[:.]\d{2})/);
-        let isTimeAllowed = true;
-        if (timeMatch) {
-            const startStr = timeMatch[1].replace('.', ':');
-            const endStr = timeMatch[2].replace('.', ':');
-            const [sH, sM] = startStr.split(':').map(Number);
-            const [eH, eM] = endStr.split(':').map(Number);
-            isTimeAllowed = currentHourValue >= (sH + sM / 60) && currentHourValue < (eH + eM / 60);
-        }
+        const isSlotAvailable = (dayName, hourValue) => {
+            const timeMatch = win.match(/(\d{1,2}[:.]\d{2})\s*[-TO/]\s*(\d{1,2}[:.]\d{2})/);
+            let isTimeAllowed = true;
+            if (timeMatch) {
+                const startStr = timeMatch[1].replace('.', ':');
+                const endStr = timeMatch[2].replace('.', ':');
+                const [sH, sM] = startStr.split(':').map(Number);
+                const [eH, eM] = endStr.split(':').map(Number);
+                const startValue = sH + sM / 60;
+                const endValue = eH + eM / 60;
+                isTimeAllowed = hourValue >= startValue && hourValue < endValue;
+            }
 
-        const dayPart = win.split(/\d/)[0].trim();
-        let isDayAllowed = false;
-        if (dayPart.includes("DAILY")) {
-            isDayAllowed = true;
-        } else if (dayPart.includes('-') || dayPart.includes('TO')) {
-            const parts = dayPart.split(/[-]|TO/);
-            const startIdx = days.map(d => d.toUpperCase()).indexOf(parts[0].trim());
-            const endIdx = days.map(d => d.toUpperCase()).indexOf(parts[1].trim());
-            const currentIdx = now.getDay();
-            isDayAllowed = currentIdx >= startIdx && currentIdx <= endIdx;
-        } else {
-            isDayAllowed = dayPart.includes(currentDayName);
-        }
-        return isDayAllowed && isTimeAllowed;
+            const dayPart = win.split(/\d/)[0].trim();
+            let isDayAllowed = false;
+            if (dayPart.includes('DAILY')) {
+                isDayAllowed = true;
+            } else if (dayPart.includes('-') || dayPart.includes('TO')) {
+                const parts = dayPart.split(/[-]|TO/);
+                const startIdx = days.findIndex((d) => d.toUpperCase() === parts[0].trim());
+                const endIdx = days.findIndex((d) => d.toUpperCase() === parts[1].trim());
+                const currentDayIdx = days.indexOf(dayName);
+                isDayAllowed = currentDayIdx >= startIdx && currentDayIdx <= endIdx;
+            } else {
+                isDayAllowed = dayPart.includes(dayName.toUpperCase());
+            }
+
+            return isDayAllowed && isTimeAllowed;
+        };
+
+        const hours = [8, 10, 12, 14, 16, 18];
+        return days.some((day) => hours.some((hour) => isSlotAvailable(day, hour)));
     };
 
     const getCalculatedStatus = (dbStatus, availabilityWindow) => {
-        if (dbStatus === 'OUT_OF_SERVICE') return 'OUT_OF_SERVICE';
-        return isCurrentlyAvailable(availabilityWindow) ? 'ACTIVE' : 'BUSY';
+        const normalizedStatus = (dbStatus || '').toUpperCase();
+        if (normalizedStatus === 'OUT_OF_SERVICE') return 'OUT_OF_SERVICE';
+        if (normalizedStatus === 'AVAILABLE') return 'ACTIVE';
+        return hasAvailableSlots(availabilityWindow) ? 'ACTIVE' : 'BUSY';
     };
 
     useEffect(() => {
