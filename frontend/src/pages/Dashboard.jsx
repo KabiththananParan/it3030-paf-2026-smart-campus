@@ -1,6 +1,15 @@
 import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
+
+const NOTIFICATION_API_URL = 'http://localhost:8080/api/auth/notification-preferences'
+const notificationCategoryLabels = {
+  BOOKING_UPDATES: 'Booking Updates',
+  MAINTENANCE_ALERTS: 'Maintenance Alerts',
+  SYSTEM_ANNOUNCEMENTS: 'System Announcements',
+  SECURITY_NOTICES: 'Security Notices',
+}
 
 const taskCards = [
   { title: 'My booking requests', items: '4 active requests', progress: '72%', color: 'bg-violet-700', accent: 'bg-violet-200' },
@@ -23,11 +32,87 @@ const calendarItems = [
 const Dashboard = () => {
   const navigate = useNavigate()
   const user = getAuthUser()
+  const [notificationPreferences, setNotificationPreferences] = useState({})
+  const [notificationStatus, setNotificationStatus] = useState('')
+  const [isNotificationLoading, setIsNotificationLoading] = useState(false)
+  const [isNotificationSaving, setIsNotificationSaving] = useState(false)
+
+  const fetchNotificationPreferences = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    setIsNotificationLoading(true)
+    setNotificationStatus('')
+    try {
+      const response = await fetch(`${NOTIFICATION_API_URL}?email=${encodeURIComponent(user.email)}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        setNotificationStatus(data.message || 'Failed to load notification preferences.')
+        return
+      }
+
+      setNotificationPreferences(data.preferences || {})
+    } catch {
+      setNotificationStatus('Cannot connect to server. Please start backend and try again.')
+    } finally {
+      setIsNotificationLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user?.email) {
+      fetchNotificationPreferences()
+    }
+  }, [user?.email])
 
   if (!user) {
     return <Navigate to="/login" replace />
   }
+
   const userItNumber = user.itNumber || user.itNo || localStorage.getItem('auth_it_number') || 'IT Number'
+
+  const handleNotificationToggle = (category) => {
+    setNotificationStatus('')
+    setNotificationPreferences((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }))
+  }
+
+  const handleSaveNotificationPreferences = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    setIsNotificationSaving(true)
+    setNotificationStatus('')
+
+    try {
+      const response = await fetch(NOTIFICATION_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          preferences: notificationPreferences,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setNotificationStatus(data.message || 'Failed to save notification preferences.')
+        return
+      }
+
+      setNotificationPreferences(data.preferences || {})
+      setNotificationStatus('Notification preferences saved.')
+    } catch {
+      setNotificationStatus('Cannot connect to server. Please start backend and try again.')
+    } finally {
+      setIsNotificationSaving(false)
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('auth_user')
@@ -88,6 +173,46 @@ const Dashboard = () => {
             </div>
             <button className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white">Create Request</button>
           </div>
+
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-slate-900">Notification Preferences</h2>
+                <p className="text-sm text-slate-500">Enable or disable categories for your account notifications.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveNotificationPreferences}
+                disabled={isNotificationSaving || isNotificationLoading}
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {isNotificationSaving ? 'Saving...' : 'Save Preferences'}
+              </button>
+            </div>
+
+            {notificationStatus ? <p className="mt-3 text-sm text-slate-700">{notificationStatus}</p> : null}
+
+            {isNotificationLoading ? (
+              <p className="mt-3 text-sm text-slate-500">Loading notification preferences...</p>
+            ) : (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {Object.keys(notificationCategoryLabels).map((category) => {
+                  const isEnabled = Boolean(notificationPreferences[category])
+                  return (
+                    <label key={category} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
+                      <span className="text-sm font-semibold text-slate-700">{notificationCategoryLabels[category]}</span>
+                      <input
+                        type="checkbox"
+                        checked={isEnabled}
+                        onChange={() => handleNotificationToggle(category)}
+                        className="h-5 w-5 accent-slate-900"
+                      />
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </section>
 
           <section className="mt-6 grid gap-4 md:grid-cols-3">
             {taskCards.map((card) => (

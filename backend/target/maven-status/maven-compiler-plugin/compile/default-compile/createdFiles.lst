@@ -1,0 +1,8 @@
+com\edutrack\backend\config\SecurityConfig.class
+com\edutrack\backend\exception\ErrorResponse.class
+com\edutrack\backend\controller\ResourceController.class
+com\edutrack\backend\repository\ResourceRepository.class
+com\edutrack\backend\BackendApplication.class
+com\edutrack\backend\entity\Resource.class
+com\edutrack\backend\exception\GlobalExceptionHandler.class
+com\edutrack\backend\service\ResourceService.class
