@@ -454,7 +454,7 @@ const SignUp = () => {
       <div className="relative hidden w-1/2 items-center justify-center overflow-hidden rounded-l-[3rem] bg-blue-900 shadow-2xl lg:flex">
         <div className="absolute right-0 top-0 h-full w-full opacity-20">
           <div className="absolute right-[-10%] top-[-10%] h-[60%] w-[120%] rounded-full bg-blue-800 blur-3xl"></div>
-          <div className="absolute bottom-[-10%] left-[-20%] h-[70%] w-[100%] rounded-full bg-orange-600 blur-3xl"></div>
+          <div className="absolute bottom-[-10%] left-[-20%] h-[70%] w-full rounded-full bg-orange-600 blur-3xl"></div>
         </div>
 
         <div className="relative z-10 flex w-full max-w-lg flex-col gap-8 px-8">

@@ -102,7 +102,7 @@ const ResourceListPage = () => {
     };
 
     const filteredResources = resources.filter(item => {
-        const currentStatus = getCalculatedStatus(item.status, item.availability_Windows);
+        const currentStatus = getCalculatedStatus(item.status, item.availabilityWindows || item.availability_Windows);
         return (
             item.name.toLowerCase().includes(filters.name.toLowerCase()) &&
             item.type.toLowerCase().includes(filters.type.toLowerCase()) &&
@@ -183,7 +183,7 @@ const ResourceListPage = () => {
             <main className="max-w-7xl mx-auto px-6 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredResources.map((item) => {
-                        const displayStatus = getCalculatedStatus(item.status, item.availability_Windows);
+                        const displayStatus = getCalculatedStatus(item.status, item.availabilityWindows || item.availability_Windows);
 
                         return (
                             <div key={item.id} className={`group ${getTypeStyles(item.type)} border rounded-[2rem] p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between h-full`}>

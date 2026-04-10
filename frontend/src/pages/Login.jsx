@@ -84,7 +84,7 @@ const Login = () => {
       <div className="flex flex-1 overflow-hidden">
       <div className="relative hidden w-1/2 overflow-hidden bg-orange-100 lg:flex">
         <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-orange-300/60 blur-3xl"></div>
-        <div className="absolute -bottom-24 right-0 h-[28rem] w-[28rem] rounded-full bg-blue-300/50 blur-3xl"></div>
+        <div className="absolute -bottom-24 right-0 h-112 w-md rounded-full bg-blue-300/50 blur-3xl"></div>
 
         <div className="relative z-10 m-10 flex w-full flex-col justify-between rounded-[2.5rem] border border-white/40 bg-white/45 p-10 backdrop-blur-sm">
           <div>
