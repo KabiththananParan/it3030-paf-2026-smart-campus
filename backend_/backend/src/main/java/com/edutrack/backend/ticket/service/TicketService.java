@@ -6,9 +6,11 @@ import com.edutrack.backend.auth.repository.UserAccountRepository;
 import com.edutrack.backend.resource.entity.Resource;
 import com.edutrack.backend.resource.repository.ResourceRepository;
 import com.edutrack.backend.ticket.dto.AddResolutionNoteRequest;
+import com.edutrack.backend.ticket.dto.AddRequesterReplyRequest;
 import com.edutrack.backend.ticket.dto.AssignTicketRequest;
 import com.edutrack.backend.ticket.dto.CreateTicketRequest;
 import com.edutrack.backend.ticket.dto.TicketResponse;
+import com.edutrack.backend.ticket.dto.UpdateTicketAdminFollowUpRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketStatusRequest;
 import com.edutrack.backend.ticket.entity.Ticket;
@@ -35,9 +37,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TicketService {
 
-    private static final List<TicketStatus> OPEN_TRANSITIONS = List.of(TicketStatus.IN_PROGRESS, TicketStatus.REJECTED);
-    private static final List<TicketStatus> IN_PROGRESS_TRANSITIONS = List.of(TicketStatus.RESOLVED, TicketStatus.OPEN);
-    private static final List<TicketStatus> RESOLVED_TRANSITIONS = List.of(TicketStatus.CLOSED, TicketStatus.IN_PROGRESS);
+    private static final List<TicketStatus> OPEN_TRANSITIONS = List.of(TicketStatus.IN_PROGRESS, TicketStatus.AWAITING_FOR_REPLY, TicketStatus.REJECTED);
+    private static final List<TicketStatus> IN_PROGRESS_TRANSITIONS = List.of(TicketStatus.AWAITING_FOR_REPLY, TicketStatus.RESOLVED, TicketStatus.OPEN);
+    private static final List<TicketStatus> AWAITING_REPLY_TRANSITIONS = List.of(TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.REJECTED);
+    private static final List<TicketStatus> RESOLVED_TRANSITIONS = List.of(TicketStatus.CLOSED, TicketStatus.IN_PROGRESS, TicketStatus.AWAITING_FOR_REPLY);
 
     private final TicketRepository ticketRepository;
     private final TicketAttachmentRepository ticketAttachmentRepository;
@@ -187,7 +190,44 @@ public class TicketService {
         Ticket ticket = getTicketEntity(id);
         ensureAssignedStaffOrAdmin(ticket, actorEmail, actorRole);
 
+        if (ticket.getStatus() == TicketStatus.AWAITING_FOR_REPLY && (request.resolutionNotes() == null || request.resolutionNotes().isBlank())) {
+            throw new TicketException(HttpStatus.BAD_REQUEST, "Resolution notes are required when ticket status is Awaiting for reply");
+        }
+
         ticket.setResolutionNotes(request.resolutionNotes().trim());
+        Ticket saved = ticketRepository.save(ticket);
+        return toResponse(saved, actorEmail, actorRole);
+    }
+
+    @Transactional
+    public TicketResponse addRequesterReply(Long id, AddRequesterReplyRequest request, String actorEmail, String actorRole) {
+        Ticket ticket = getTicketEntity(id);
+        ensureEditableByOwnerOrAdmin(ticket, actorEmail, actorRole);
+        ensureTicketNotFinal(ticket);
+
+        if (ticket.getStatus() != TicketStatus.AWAITING_FOR_REPLY) {
+            throw new TicketException(HttpStatus.BAD_REQUEST, "Requester replies are only allowed when ticket status is Awaiting for reply");
+        }
+
+        ticket.setRequesterReply(request.replyMessage().trim());
+        ticket.setRequesterActionRequired(false);
+
+        Ticket saved = ticketRepository.save(ticket);
+        return toResponse(saved, actorEmail, actorRole);
+    }
+
+    @Transactional
+    public TicketResponse updateAdminFollowUp(Long id, UpdateTicketAdminFollowUpRequest request, String actorEmail, String actorRole) {
+        ensureStaffOrAdmin(actorRole);
+        Ticket ticket = getTicketEntity(id);
+        ensureCanView(ticket, actorEmail, actorRole);
+        ensureTicketNotFinal(ticket);
+
+        ticket.setRequesterActionRequired(Boolean.TRUE.equals(request.requesterActionRequired()));
+        ticket.setRequestedDocuments(trimToNull(request.requestedDocuments()));
+        ticket.setAdminMessage(trimToNull(request.adminMessage()));
+        ticket.setRelatedDetails(trimToNull(request.relatedDetails()));
+
         Ticket saved = ticketRepository.save(ticket);
         return toResponse(saved, actorEmail, actorRole);
     }
@@ -328,6 +368,7 @@ public class TicketService {
         boolean valid = switch (currentStatus) {
             case OPEN -> OPEN_TRANSITIONS.contains(nextStatus);
             case IN_PROGRESS -> IN_PROGRESS_TRANSITIONS.contains(nextStatus);
+            case AWAITING_FOR_REPLY -> AWAITING_REPLY_TRANSITIONS.contains(nextStatus);
             case RESOLVED -> RESOLVED_TRANSITIONS.contains(nextStatus);
             case CLOSED, REJECTED -> false;
         };
@@ -432,5 +473,13 @@ public class TicketService {
 
     private String sanitizeFileName(String originalFileName) {
         return originalFileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

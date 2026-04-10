@@ -1,9 +1,11 @@
 package com.edutrack.backend.ticket.controller;
 
 import com.edutrack.backend.ticket.dto.AddResolutionNoteRequest;
+import com.edutrack.backend.ticket.dto.AddRequesterReplyRequest;
 import com.edutrack.backend.ticket.dto.AssignTicketRequest;
 import com.edutrack.backend.ticket.dto.CreateTicketRequest;
 import com.edutrack.backend.ticket.dto.TicketResponse;
+import com.edutrack.backend.ticket.dto.UpdateTicketAdminFollowUpRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketStatusRequest;
 import com.edutrack.backend.ticket.entity.TicketAttachment;
@@ -112,6 +114,24 @@ public class TicketController {
             @RequestHeader("X-User-Email") String actorEmail,
             @RequestHeader("X-User-Role") String actorRole) {
         return ResponseEntity.ok(ticketService.addResolutionNotes(id, request, actorEmail, actorRole));
+    }
+
+    @PatchMapping("/{id}/requester-reply")
+    public ResponseEntity<TicketResponse> addRequesterReply(
+            @PathVariable Long id,
+            @Valid @RequestBody AddRequesterReplyRequest request,
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.addRequesterReply(id, request, actorEmail, actorRole));
+    }
+
+    @PatchMapping("/{id}/admin-follow-up")
+    public ResponseEntity<TicketResponse> updateAdminFollowUp(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTicketAdminFollowUpRequest request,
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.updateAdminFollowUp(id, request, actorEmail, actorRole));
     }
 
     @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

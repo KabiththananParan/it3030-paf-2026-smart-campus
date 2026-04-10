@@ -112,9 +112,13 @@ const MyTicketsPage = () => {
         <div className="grid gap-4 lg:grid-cols-2">
           {filteredTickets.map((ticket) => {
             const metadata = parseDescriptionMetadata(ticket.description)
+            const normalizedTitle = String(ticket.title || '').trim()
+            const normalizedRequestType = String(metadata.requestType || '').trim().toUpperCase()
             const titleValue = ticket.category === 'OTHER'
-              ? (ticket.title || 'Subject')
-              : (metadata.requestType !== '-' ? metadata.requestType : (ticket.title || 'Request / Inquiry type'))
+              ? (normalizedTitle && normalizedTitle.toUpperCase() !== 'OTHER' ? normalizedTitle : 'Subject not provided')
+              : (normalizedRequestType && normalizedRequestType !== 'OTHER'
+                ? metadata.requestType
+                : (normalizedTitle && normalizedTitle.toUpperCase() !== 'OTHER' ? normalizedTitle : 'Request / Inquiry type'))
 
             return (
               <Link key={ticket.id} to={`/tickets/${ticket.id}`} className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">

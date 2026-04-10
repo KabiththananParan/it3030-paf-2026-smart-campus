@@ -112,6 +112,26 @@ export const addResolutionNotes = async (id, resolutionNotes) => {
   return parseJsonResponse(response)
 }
 
+export const addRequesterReply = async (id, replyMessage) => {
+  const response = await fetch(`${TICKETS_API_BASE}/${id}/requester-reply`, {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify({ replyMessage }),
+  })
+
+  return parseJsonResponse(response)
+}
+
+export const updateAdminFollowUp = async (id, payload) => {
+  const response = await fetch(`${TICKETS_API_BASE}/${id}/admin-follow-up`, {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify(payload),
+  })
+
+  return parseJsonResponse(response)
+}
+
 export const uploadAttachments = async (id, files) => {
   const formData = new FormData()
   files.forEach((file) => formData.append('files', file))

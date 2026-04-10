@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { cancelTicket, deleteAttachment, getTicketAttachmentUrl, getTicketById, updateTicket, uploadAttachments } from '../../api/ticketApi.js'
+import { addRequesterReply, cancelTicket, deleteAttachment, getTicketAttachmentUrl, getTicketById, updateTicket, uploadAttachments } from '../../api/ticketApi.js'
 import TicketStatusBadge from '../../components/tickets/TicketStatusBadge.jsx'
 
 const requestTypeOptions = [
@@ -101,6 +101,11 @@ const TicketDetailsPage = () => {
   const [isCancelling, setIsCancelling] = useState(false)
   const [editAttachmentFiles, setEditAttachmentFiles] = useState([])
   const [isManagingAttachments, setIsManagingAttachments] = useState(false)
+  const [replyMessageDraft, setReplyMessageDraft] = useState('')
+  const [replyAttachmentFiles, setReplyAttachmentFiles] = useState([])
+  const [isSendingReply, setIsSendingReply] = useState(false)
+  const [replyError, setReplyError] = useState('')
+  const [isReplyEditing, setIsReplyEditing] = useState(false)
 
   const loadTicket = async () => {
     try {
@@ -116,6 +121,12 @@ const TicketDetailsPage = () => {
   useEffect(() => {
     loadTicket()
   }, [id])
+
+  useEffect(() => {
+    const savedReply = ticket?.requesterReply || ''
+    setReplyMessageDraft(savedReply)
+    setIsReplyEditing(false)
+  }, [ticket])
 
   const refreshTicket = async () => {
     const data = await getTicketById(id)
@@ -171,6 +182,48 @@ const TicketDetailsPage = () => {
     } finally {
       setIsManagingAttachments(false)
     }
+  }
+
+  const handleSendRequesterReply = async () => {
+    if (!replyMessageDraft.trim()) {
+      setReplyError('Reply message is required.')
+      return
+    }
+
+    try {
+      setIsSendingReply(true)
+      setReplyError('')
+
+      await addRequesterReply(id, replyMessageDraft.trim())
+
+      if (replyAttachmentFiles.length > 0) {
+        await uploadAttachments(id, replyAttachmentFiles)
+      }
+
+      const refreshed = await getTicketById(id)
+      setTicket(refreshed)
+      setReplyAttachmentFiles([])
+      setIsReplyEditing(false)
+      setActionMessage('Reply sent successfully.')
+    } catch (sendError) {
+      setReplyError(sendError.message || 'Unable to send reply.')
+    } finally {
+      setIsSendingReply(false)
+    }
+  }
+
+  const handleEditReply = () => {
+    setReplyMessageDraft(ticket?.requesterReply || '')
+    setIsReplyEditing(true)
+    setReplyError('')
+  }
+
+  const handleCancelReplyEdit = () => {
+    setReplyMessageDraft(ticket?.requesterReply || '')
+    setReplyAttachmentFiles([])
+    setReplyError('')
+    setIsReplyEditing(false)
+    setActionMessage('Changes discarded.')
   }
 
   const validateEditForm = () => {
@@ -266,6 +319,8 @@ const TicketDetailsPage = () => {
   const requestTypeLabel = ticket.title || metadata.requestType || ticketFallbackRequestType
   const isTicketFinal = ticket.status === 'CLOSED' || ticket.status === 'REJECTED'
   const canEditOrCancel = ticket.editableByCurrentUser && !isTicketFinal
+  const hasAdminFollowUp = Boolean(ticket.adminMessage || ticket.requestedDocuments)
+  const isAwaitingReply = ticket.status === 'AWAITING_FOR_REPLY'
 
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 lg:px-8">
@@ -488,8 +543,18 @@ const TicketDetailsPage = () => {
             </div>
 
             <div>
-              <h2 className="text-lg font-bold text-slate-950">Resolution notes</h2>
-              <p className="mt-2 whitespace-pre-line text-sm text-slate-700">{ticket.resolutionNotes || 'No resolution notes yet.'}</p>
+              {(ticket.status === 'RESOLVED' || ticket.status === 'AWAITING_FOR_REPLY') && hasAdminFollowUp ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <h3 className="text-sm font-bold text-amber-800">Admin follow-up request</h3>
+                  {ticket.adminMessage ? (
+                    <p className="mt-2 whitespace-pre-line text-sm text-amber-900">Message: {ticket.adminMessage}</p>
+                  ) : null}
+                  {ticket.requestedDocuments ? (
+                    <p className="mt-2 whitespace-pre-line text-sm text-amber-900">Requested documents: {ticket.requestedDocuments}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
             </div>
 
             <div>
@@ -532,6 +597,85 @@ const TicketDetailsPage = () => {
             </div>
           </aside>
         </div>
+
+        <section className="rounded-[1.75rem] border border-amber-300 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-lg font-black text-amber-900">Resolution Notes</h2>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">Sent by admin</p>
+
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-white p-4 text-slate-800">
+            <p className="whitespace-pre-line text-sm">{ticket.resolutionNotes || 'No resolution notes yet.'}</p>
+          </div>
+        </section>
+
+        {isAwaitingReply ? (
+          <section className="rounded-[1.75rem] border border-cyan-300 bg-cyan-50 p-6 shadow-sm">
+            <h2 className="text-lg font-black text-cyan-900">Reply to Admin</h2>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">Your response</p>
+            <p className="mt-2 text-sm text-cyan-900">Write your reply and attach any requested documents before sending.</p>
+
+            {isReplyEditing ? (
+              <>
+                <label className="mt-4 block text-sm font-semibold text-slate-700">
+                  Reply message
+                  <textarea
+                    value={replyMessageDraft}
+                    onChange={(event) => setReplyMessageDraft(event.target.value)}
+                    rows="4"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3"
+                    placeholder="Type your response to the admin here."
+                  />
+                </label>
+
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                  <h4 className="text-sm font-bold text-slate-900">Attach documents</h4>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    multiple
+                    onChange={(event) => setReplyAttachmentFiles(Array.from(event.target.files || []).slice(0, 3))}
+                    className="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm"
+                  />
+                  {replyAttachmentFiles.length > 0 ? (
+                    <p className="mt-2 text-xs text-slate-500">Selected: {replyAttachmentFiles.map((file) => file.name).join(', ')}</p>
+                  ) : null}
+                </div>
+
+                {replyError ? <p className="mt-3 text-sm text-rose-600">{replyError}</p> : null}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSendRequesterReply}
+                    disabled={isSendingReply}
+                    className="rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSendingReply ? 'Sending...' : 'Send reply'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelReplyEdit}
+                    className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="whitespace-pre-line text-sm text-slate-800">{ticket.requesterReply || 'No reply sent yet.'}</p>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={handleEditReply}
+                    className="rounded-2xl border border-cyan-300 bg-white px-5 py-3 text-sm font-bold text-cyan-900"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        ) : null}
       </div>
     </div>
   )

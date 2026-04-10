@@ -4,7 +4,7 @@ import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
 import { API_BASE_URL } from '../config.js'
 
-const adminSections = ['Users', 'Resources', 'Bookings', 'Notifications']
+const adminSections = ['Users', 'Resources', 'Bookings', 'Tickets', 'Notifications']
 const USERS_API_URL = `${API_BASE_URL}/api/auth/admin/users`
 const NOTIFICATION_API_URL = `${API_BASE_URL}/api/auth/notification-preferences`
 const RESOURCES_API_URL = `${API_BASE_URL}/api/resources`
@@ -49,7 +49,7 @@ const AdminDashboard = () => {
     itNumber: '',
     email: '',
     password: '',
-    role: 'TECHNICIAN',
+    role: 'USER',
   })
   const [statusMessage, setStatusMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -262,7 +262,7 @@ const AdminDashboard = () => {
         itNumber: '',
         email: '',
         password: '',
-        role: 'TECHNICIAN',
+        role: 'USER',
       })
       fetchUsers()
     } catch {
@@ -560,7 +560,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#f5efe8] p-3 sm:p-5">
-      <div className="mx-auto max-w-7xl rounded-[2rem] border border-slate-200 bg-slate-50 p-5 shadow-xl sm:p-7">
+      <div className="mx-auto max-w-7xl rounded-4xl border border-slate-200 bg-slate-50 p-5 shadow-xl sm:p-7">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="flex items-center gap-3">
             <img src={logo} alt="EduTrack logo" className="h-10 w-10 rounded-xl object-cover" />
@@ -774,7 +774,6 @@ const AdminDashboard = () => {
                       >
                         <option value="STUDENT">STUDENT</option>
                         <option value="USER">USER</option>
-                        <option value="TECHNICIAN">TECHNICIAN</option>
                         <option value="MANAGER">MANAGER</option>
                         <option value="ADMIN">ADMIN</option>
                       </select>
@@ -801,9 +800,9 @@ const AdminDashboard = () => {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h2 className="text-xl font-black text-slate-900">Create User Account</h2>
-                        <p className="text-sm text-slate-500">Admin can create ADMIN, MANAGER, TECHNICIAN, USER, and STUDENT accounts.</p>
+                        <p className="text-sm text-slate-500">Admin can create ADMIN, MANAGER, USER, and STUDENT accounts.</p>
                       </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">STUDENT uses IT number, TECHNICIAN gets ITTECH###</span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">STUDENT uses IT number for account mapping.</span>
                     </div>
 
                     <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreateAccount}>
@@ -819,7 +818,7 @@ const AdminDashboard = () => {
                         name="itNumber"
                         value={formData.itNumber}
                         onChange={handleChange}
-                        placeholder={isStudentCreate ? 'IT23608054' : 'Optional for technician (auto ITTECH001)'}
+                        placeholder={isStudentCreate ? 'IT23608054' : 'IT Number'}
                         maxLength={10}
                         className="rounded-xl border border-slate-200 px-4 py-3 uppercase outline-none focus:ring-4 focus:ring-violet-100"
                         required={isStudentCreate}
@@ -848,7 +847,6 @@ const AdminDashboard = () => {
                         onChange={handleChange}
                         className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
                       >
-                        <option value="TECHNICIAN">TECHNICIAN</option>
                         <option value="MANAGER">MANAGER</option>
                         <option value="ADMIN">ADMIN</option>
                         <option value="USER">USER</option>
@@ -1064,6 +1062,34 @@ const AdminDashboard = () => {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              ) : null}
+
+              {activeSection === 'Tickets' ? (
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Ticket Management</p>
+                    <h3 className="mt-2 text-2xl font-black text-slate-950">Manage maintenance and incident requests</h3>
+                    <p className="mt-2 max-w-3xl text-sm text-slate-600">
+                      Review submitted tickets, assign support staff, update workflow status, and save resolution notes from the admin side.
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/tickets/manage')}
+                        className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                      >
+                        Open Ticket Management
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/tickets/manage')}
+                        className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-bold text-cyan-800 hover:bg-cyan-100"
+                      >
+                        View Ticket Queue
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : null}
