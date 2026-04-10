@@ -7,9 +7,15 @@ import java.util.Optional;
 
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
 
+    java.util.List<UserAccount> findAllByOrderByCreatedAtDesc();
+
     Optional<UserAccount> findByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCase(String email);
 
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
+
     boolean existsByItNumberIgnoreCase(String itNumber);
+
+    boolean existsByItNumberIgnoreCaseAndIdNot(String itNumber, Long id);
 }

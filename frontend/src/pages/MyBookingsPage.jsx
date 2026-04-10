@@ -19,6 +19,27 @@ const statusBadge = {
   CANCELLED: 'bg-slate-200 text-slate-700',
 }
 
+const formatDate = (value) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+const formatTime = (value) =>
+  new Date(`2026-01-01T${value}`).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+const formatDateTime = (value) =>
+  new Date(value).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
 const buildQrImageUrl = (token) => {
   const scanUrl = buildQrScanUrl(token)
   return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(scanUrl)}`
@@ -271,43 +292,71 @@ const MyBookingsPage = () => {
           {loading ? <p className="text-sm text-slate-500">Loading bookings...</p> : null}
 
           {filteredBookings.map((booking) => (
-            <div key={booking.id} className="rounded-xl border border-slate-200 p-4">
-              <p className="font-bold text-slate-900">
-                {booking.resourceName}
-                <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${statusBadge[booking.status] || 'bg-slate-100 text-slate-700'}`}>
-                  {booking.status}
-                </span>
-              </p>
-              <p className="text-sm text-slate-600">{booking.bookingDate} | {booking.startTime} - {booking.endTime}</p>
-              <p className="text-sm text-slate-700">{booking.purpose}</p>
+            <div key={booking.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-4 transition hover:border-slate-300 hover:bg-white">
+              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr_auto]">
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-2xl font-black text-slate-900">{booking.resourceName}</h3>
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusBadge[booking.status] || 'bg-slate-100 text-slate-700'}`}>
+                      {booking.status}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">{booking.purpose}</p>
+                  <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+                    Created {booking.createdAt ? formatDateTime(booking.createdAt) : 'just now'}
+                  </p>
+                </div>
 
-              <div className="mt-3 flex gap-2">
-                {editableStatuses.includes(booking.status) ? (
-                  <button onClick={() => onEditClick(booking)} className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibold">Edit</button>
-                ) : null}
-                {(booking.status === 'PENDING' || booking.status === 'APPROVED') ? (
-                  <button onClick={() => onCancel(booking.id)} className="rounded-lg border border-rose-300 px-3 py-1 text-xs font-semibold text-rose-700">Cancel</button>
-                ) : null}
-                {(booking.status === 'REJECTED' || booking.status === 'CANCELLED') ? (
-                  <button onClick={() => onDelete(booking.id)} className="rounded-lg border border-slate-400 px-3 py-1 text-xs font-semibold text-slate-700">Delete</button>
-                ) : null}
-                {booking.status === 'APPROVED' && booking.qrToken ? (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">QR Check-in</p>
-                    <div className="mt-2 flex items-center gap-3">
-                      <img
-                        src={buildQrImageUrl(booking.qrToken)}
-                        alt="Booking QR code"
-                        className="h-20 w-20 rounded-lg border border-emerald-200 bg-white p-1"
-                      />
-                      <div>
-                        <p className="text-xs text-emerald-700">Scan this code at check-in.</p>
-                        <p className="mt-1 text-[11px] text-slate-500">Token: {booking.qrToken.slice(0, 10)}...</p>
-                      </div>
+                <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-1">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Schedule</p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {formatDate(booking.bookingDate)} · {formatTime(booking.startTime)} to {formatTime(booking.endTime)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Attendance</p>
+                    <p className="mt-1 font-semibold text-slate-900">{booking.expectedAttendees || 0} attendees</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 lg:flex-col lg:items-end">
+                  {booking.cancelReason ? (
+                    <p className="max-w-55 text-right text-xs text-slate-500">{booking.cancelReason}</p>
+                  ) : (
+                    <span className="text-xs uppercase tracking-[0.18em] text-slate-400">{booking.resourceType || 'RESOURCE'}</span>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    {editableStatuses.includes(booking.status) ? (
+                      <button onClick={() => onEditClick(booking)} className="rounded-full border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100">Edit</button>
+                    ) : null}
+                    {(booking.status === 'PENDING' || booking.status === 'APPROVED') ? (
+                      <button onClick={() => onCancel(booking.id)} className="rounded-full border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700">Cancel</button>
+                    ) : null}
+                    {(booking.status === 'REJECTED' || booking.status === 'CANCELLED') ? (
+                      <button onClick={() => onDelete(booking.id)} className="rounded-full border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-50">Delete</button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              {booking.status === 'APPROVED' && booking.qrToken ? (
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">QR Check-in</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <img
+                      src={buildQrImageUrl(booking.qrToken)}
+                      alt="Booking QR code"
+                      className="h-20 w-20 rounded-lg border border-emerald-200 bg-white p-1"
+                    />
+                    <div>
+                      <p className="text-xs text-emerald-700">Scan this code at check-in.</p>
+                      <p className="mt-1 text-[11px] text-slate-500">Token: {booking.qrToken.slice(0, 10)}...</p>
                     </div>
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
 
               {editingId === booking.id && editForm ? (
                 <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">

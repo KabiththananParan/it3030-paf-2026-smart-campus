@@ -4,10 +4,10 @@ import com.edutrack.backend.booking.exception.BookingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -36,27 +36,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BookingException.class)
     public ResponseEntity<Map<String, Object>> handleBookingException(BookingException ex) {
-        Map<String, Object> response = baseErrorBody(ex.getMessage(), ex.getStatus().value());
-        if (!ex.getSuggestions().isEmpty()) {
-            response.put("suggestions", ex.getSuggestions());
-        }
+        int status = ex.getStatus().value();
+        Map<String, Object> response = baseErrorBody(ex.getMessage(), status);
+        response.put("suggestions", ex.getSuggestions());
         return ResponseEntity.status(ex.getStatus()).body(response);
     }
 
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        String message = "Invalid request parameter";
-        if (ex.getName() != null) {
-            message = "Invalid value for parameter: " + ex.getName();
-        }
-        Map<String, Object> response = baseErrorBody(message, HttpStatus.BAD_REQUEST.value());
-        return ResponseEntity.badRequest().body(response);
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
+        int status = ex.getStatusCode().value();
+        Map<String, Object> response = baseErrorBody(ex.getReason() != null ? ex.getReason() : "Request failed", status);
+        return ResponseEntity.status(ex.getStatusCode()).body(response);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
-        Map<String, Object> response = baseErrorBody("Unexpected server error",
-                HttpStatus.INTERNAL_SERVER_ERROR.value());
+        Map<String, Object> response = baseErrorBody("Unexpected server error", HttpStatus.INTERNAL_SERVER_ERROR.value());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
