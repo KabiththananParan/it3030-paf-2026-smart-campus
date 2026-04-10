@@ -1,120 +1,198 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import AdminDashboard from './pages/AdminDashboard.jsx'
+import BookingApprovalPage from './pages/BookingApprovalPage.jsx'
+import BookingCalendarPage from './pages/BookingCalendarPage.jsx'
+import BookingFormPage from './pages/BookingFormPage.jsx'
+import BookingQrDetailsPage from './pages/BookingQrDetailsPage.jsx'
+import Booking from './pages/Booking.jsx'
+import Dashboard from './pages/Dashboard.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import Home from './pages/Home.jsx'
+import Login from './pages/Login.jsx'
+import ManagerDashboard from './pages/ManagerDashboard.jsx'
+import MyBookingsPage from './pages/MyBookingsPage.jsx'
+import AddResourcePage from './pages/resources/AddResourcePage.jsx'
+import ManageResourcePage from './pages/resources/ManageResourcePage.jsx'
+import ResourceDetailsPage from './pages/resources/ResourceDetailsPage.jsx'
+import ResourceListPage from './pages/resources/ResourceListPage.jsx'
+import CreateTicketPage from './pages/tickets/CreateTicketPage.jsx'
+import MyTicketsPage from './pages/tickets/MyTicketsPage.jsx'
+import TicketDetailsPage from './pages/tickets/TicketDetailsPage.jsx'
+import TicketManagementPage from './pages/tickets/TicketManagementPage.jsx'
+import SignUp from './pages/SignUp.jsx'
+import TechnicianDashboard from './pages/TechnicianDashboard.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import { ROLES } from './auth/roles.js'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/resources"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <ResourceListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/resources"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <ResourceListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/resource/details/:id"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <ResourceDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <Navigate to="/bookings/form" replace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/form"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <BookingFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/booking"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <Booking />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/my"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <MyBookingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/approval"
+        element={
+          <ProtectedRoute minRole={ROLES.MANAGER}>
+            <BookingApprovalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/calendar"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <BookingCalendarPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/scan/:token"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <BookingQrDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/technician/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.TECHNICIAN}>
+            <TechnicianDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.MANAGER}>
+            <ManagerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/resources/add"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <AddResourcePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/resources/manage/:id"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <ManageResourcePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/new"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <CreateTicketPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/my"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <MyTicketsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/:id"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <TicketDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/manage"
+        element={
+          <ProtectedRoute minRole={ROLES.TECHNICIAN}>
+            <TicketManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
 
