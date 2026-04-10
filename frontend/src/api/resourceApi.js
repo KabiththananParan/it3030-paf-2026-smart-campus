@@ -1,7 +1,7 @@
-import axios from 'axios';
+import axios from 'axios'
+import { resolveApiBase } from '../utils/apiUrl.js'
 
-// This points to your Spring Boot server
-const API_BASE_URL = 'http://localhost:8080/api/resources';
+const API_BASE_URL = `${resolveApiBase()}/api/resources`
 
 const resourceApi = {
     // Get all resources for the main list
