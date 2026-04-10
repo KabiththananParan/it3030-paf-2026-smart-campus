@@ -23,7 +23,7 @@ const AddResourcePage = () => {
         try {
             await resourceApi.createResource(resource);
             setMessage({ type: 'success', text: 'New resource added successfully!' });
-            setTimeout(() => navigate('/'), 1500);
+            setTimeout(() => navigate('/admin/dashboard?section=Resources'), 1200);
         } catch (err) {
             console.error("Creation error:", err);
             setMessage({
@@ -41,7 +41,7 @@ const AddResourcePage = () => {
         <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 font-sans">
             <div className="max-w-3xl mx-auto">
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/admin/dashboard?section=Resources')}
                     className="flex items-center gap-2 text-slate-500 hover:text-[#003366] mb-8 font-bold transition-colors"
                 >
                     <ArrowLeft size={18} /> Back to Inventory
@@ -54,7 +54,7 @@ const AddResourcePage = () => {
                                 Add New <span className="text-[#F39200]">Resource</span>
                             </h1>
                             <p className="text-blue-100/50 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">
-                                System Entry • Academic Year 2026
+                                System Entry ï¿½ Academic Year 2026
                             </p>
                         </div>
                         <PlusCircle className="absolute -right-4 -bottom-4 text-white/5 w-32 h-32" />

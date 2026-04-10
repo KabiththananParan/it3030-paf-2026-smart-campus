@@ -61,7 +61,7 @@ const ManageResourcePage = () => {
         try {
             await resourceApi.updateResource(id, resource);
             setMessage({ type: 'success', text: 'Resource updated successfully!' });
-            setTimeout(() => navigate('/'), 1500);
+            setTimeout(() => navigate('/admin/dashboard?section=Resources'), 1200);
         } catch (err) {
             console.error("Update error:", err);
             setMessage({ type: 'error', text: 'Update failed. Please check your data.' });
@@ -74,7 +74,7 @@ const ManageResourcePage = () => {
         if (window.confirm("CRITICAL: Are you sure you want to delete this resource?")) {
             try {
                 await resourceApi.deleteResource(id);
-                navigate('/');
+                navigate('/admin/dashboard?section=Resources');
             } catch (err) {
                 setMessage({ type: 'error', text: 'Could not delete resource.' });
             }
@@ -91,7 +91,7 @@ const ManageResourcePage = () => {
         <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 font-sans">
             <div className="max-w-3xl mx-auto">
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/admin/dashboard?section=Resources')}
                     className="flex items-center gap-2 text-slate-500 hover:text-[#003366] font-bold text-sm mb-8 transition-colors"
                 >
                     <ArrowLeft size={18} /> Back to Inventory

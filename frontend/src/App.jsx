@@ -11,6 +11,8 @@ import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import ManagerDashboard from './pages/ManagerDashboard.jsx'
 import MyBookingsPage from './pages/MyBookingsPage.jsx'
+import AddResourcePage from './pages/resources/AddResourcePage.jsx'
+import ManageResourcePage from './pages/resources/ManageResourcePage.jsx'
 import ResourceDetailsPage from './pages/resources/ResourceDetailsPage.jsx'
 import ResourceListPage from './pages/resources/ResourceListPage.jsx'
 import SignUp from './pages/SignUp.jsx'
@@ -126,6 +128,22 @@ function App() {
         element={
           <ProtectedRoute minRole={ROLES.ADMIN}>
             <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/resources/add"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <AddResourcePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/resources/manage/:id"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <ManageResourcePage />
           </ProtectedRoute>
         }
       />

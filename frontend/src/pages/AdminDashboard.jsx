@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
@@ -27,8 +27,11 @@ const initialAdminNotifications = [
 
 const AdminDashboard = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const user = getAuthUser()
-  const [activeSection, setActiveSection] = useState('Users')
+  const initialSection = searchParams.get('section')
+  const resolvedInitialSection = adminSections.includes(initialSection) ? initialSection : 'Users'
+  const [activeSection, setActiveSection] = useState(resolvedInitialSection)
   const [users, setUsers] = useState([])
   const [isUsersLoading, setIsUsersLoading] = useState(false)
   const [usersStatus, setUsersStatus] = useState('')
@@ -434,6 +437,22 @@ const AdminDashboard = () => {
   const handleCreateResource = async (event) => {
     event.preventDefault()
     setResourceCrudStatus('')
+
+    if (!resourceFormData.name.trim()) {
+      setResourceCrudStatus('Resource name is required.')
+      return
+    }
+
+    if (!resourceFormData.type.trim()) {
+      setResourceCrudStatus('Resource type is required.')
+      return
+    }
+
+    if (!Number.isFinite(resourceFormData.capacity) || resourceFormData.capacity < 1) {
+      setResourceCrudStatus('Capacity must be at least 1.')
+      return
+    }
+
     setIsSubmittingResource(true)
     try {
       const response = await fetch(`${RESOURCES_API_URL}/add`, {
@@ -890,13 +909,22 @@ const AdminDashboard = () => {
                 <div className="mt-5 space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-slate-500">Create, update, and remove campus resources.</p>
-                    <button
-                      type="button"
-                      onClick={fetchResources}
-                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      Refresh Resources
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/resources/add')}
+                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                      >
+                        Open Add Resource
+                      </button>
+                      <button
+                        type="button"
+                        onClick={fetchResources}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        Refresh Resources
+                      </button>
+                    </div>
                   </div>
 
                   {resourcesStatus ? <p className="text-sm text-rose-600">{resourcesStatus}</p> : null}
@@ -935,15 +963,15 @@ const AdminDashboard = () => {
                                 <div className="flex gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => handleStartResourceEdit(resource)}
+                                    onClick={() => navigate(`/admin/resources/manage/${resource.id}`)}
                                     className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800"
                                   >
                                     Edit
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteResource(resource)}
-                                    className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-bold text-white hover:bg-rose-500"
+                                    onClick={() => navigate(`/admin/resources/manage/${resource.id}`)}
+                                    className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
                                   >
                                     Delete
                                   </button>
@@ -957,9 +985,9 @@ const AdminDashboard = () => {
                   </div>
 
                   <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleCreateResource}>
-                    <input name="name" value={resourceFormData.name} onChange={handleResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
-                    <input name="type" value={resourceFormData.type} onChange={handleResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
-                    <input name="capacity" type="number" min="1" value={resourceFormData.capacity} onChange={handleResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
+                    <input name="name" value={resourceFormData.name} onChange={handleResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="type" value={resourceFormData.type} onChange={handleResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="capacity" type="number" min="1" value={resourceFormData.capacity} onChange={handleResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
                     <input name="location" value={resourceFormData.location} onChange={handleResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
                     <input name="availabilityWindows" value={resourceFormData.availabilityWindows} onChange={handleResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
                     <input name="status" value={resourceFormData.status} onChange={handleResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
@@ -968,20 +996,9 @@ const AdminDashboard = () => {
                     </button>
                   </form>
 
-                  {editingResourceId ? (
-                    <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleUpdateResource}>
-                      <input name="name" value={editResourceFormData.name} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
-                      <input name="type" value={editResourceFormData.type} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
-                      <input name="capacity" type="number" min="1" value={editResourceFormData.capacity} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
-                      <input name="location" value={editResourceFormData.location} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="availabilityWindows" value={editResourceFormData.availabilityWindows} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="status" value={editResourceFormData.status} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <div className="flex gap-2 md:col-span-2">
-                        <button type="submit" className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white">Update Resource</button>
-                        <button type="button" onClick={() => setEditingResourceId(null)} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">Cancel</button>
-                      </div>
-                    </form>
-                  ) : null}
+                  <p className="text-xs text-slate-500">
+                    Tip: Use Edit or Delete to open the dedicated Manage Resource page for full update/delete actions.
+                  </p>
                 </div>
               ) : null}
 
