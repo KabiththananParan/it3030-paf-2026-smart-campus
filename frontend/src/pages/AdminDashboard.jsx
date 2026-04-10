@@ -29,6 +29,34 @@ const initialAdminNotifications = [
   { id: 3, title: 'System announcement', detail: 'Semester schedule update published.', time: '1 hour ago', read: true },
 ]
 
+const getAdminNotificationReadKey = (email) => `admin_notification_read_ids:${(email || 'admin').toLowerCase()}`
+
+const getStoredAdminReadIds = (email) => {
+  try {
+    const raw = localStorage.getItem(getAdminNotificationReadKey(email))
+    if (!raw) {
+      return new Set()
+    }
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return new Set()
+    }
+
+    return new Set(parsed.map((id) => String(id)))
+  } catch {
+    return new Set()
+  }
+}
+
+const applyStoredReadIds = (notifications, email) => {
+  const storedReadIds = getStoredAdminReadIds(email)
+  return notifications.map((notification) => ({
+    ...notification,
+    read: notification.read || storedReadIds.has(String(notification.id)),
+  }))
+}
+
 
 // Admin Dashboard
 
@@ -65,7 +93,7 @@ const AdminDashboard = () => {
   const [isNotificationLoading, setIsNotificationLoading] = useState(false)
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
-  const [adminNotifications, setAdminNotifications] = useState(initialAdminNotifications)
+  const [adminNotifications, setAdminNotifications] = useState(() => applyStoredReadIds(initialAdminNotifications, user?.email))
   const [resources, setResources] = useState([])
   const [isResourcesLoading, setIsResourcesLoading] = useState(false)
   const [resourcesStatus, setResourcesStatus] = useState('')
@@ -261,6 +289,18 @@ const AdminDashboard = () => {
       fetchNotificationPreferences()
     }
   }, [activeSection, user?.email])
+
+  useEffect(() => {
+    if (!user?.email) {
+      return
+    }
+
+    const readIds = adminNotifications
+      .filter((notification) => notification.read)
+      .map((notification) => String(notification.id))
+
+    localStorage.setItem(getAdminNotificationReadKey(user.email), JSON.stringify(readIds))
+  }, [adminNotifications, user?.email])
 
   if (!user) {
     return <Navigate to="/login" replace />

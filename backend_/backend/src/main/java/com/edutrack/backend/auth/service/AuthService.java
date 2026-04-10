@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,6 +51,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final String mailFromAddress;
+    private final String mailUsername;
+    private final String mailPassword;
+    private final boolean allowDevOtpFallback;
 
     private final Map<String, SignupOtpEntry> signupOtps = new ConcurrentHashMap<>();
     private final Map<String, PasswordResetOtpEntry> passwordResetOtps = new ConcurrentHashMap<>();
@@ -58,12 +62,18 @@ public class AuthService {
             UserAccountRepository userAccountRepository,
             PasswordEncoder passwordEncoder,
             ObjectProvider<JavaMailSender> mailSenderProvider,
-            @Value("${app.mail.from:no-reply@smartcampus.local}") String mailFromAddress
+            @Value("${app.mail.from:no-reply@smartcampus.local}") String mailFromAddress,
+            @Value("${spring.mail.username:}") String mailUsername,
+            @Value("${spring.mail.password:}") String mailPassword,
+            @Value("${app.mail.allow-dev-otp-fallback:true}") boolean allowDevOtpFallback
     ) {
         this.userAccountRepository = userAccountRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailSenderProvider = mailSenderProvider;
         this.mailFromAddress = mailFromAddress;
+        this.mailUsername = mailUsername;
+        this.mailPassword = mailPassword;
+        this.allowDevOtpFallback = allowDevOtpFallback;
     }
 
     @Transactional
@@ -85,7 +95,16 @@ public class AuthService {
 
         String otpCode = generateOtpCode();
         signupOtps.put(normalizedEmail, new SignupOtpEntry(request, otpCode, LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES)));
-        sendEmail(normalizedEmail, "EduTrack signup verification code", buildSignupOtpBody(otpCode, request.fullName().trim()));
+        log.info("Signup OTP generated for {}: {} (expires in {} minutes)", normalizedEmail, otpCode, OTP_EXPIRY_MINUTES);
+        try {
+            sendEmail(normalizedEmail, "EduTrack signup verification code", buildSignupOtpBody(otpCode, request.fullName().trim()));
+        } catch (AuthException mailException) {
+            if (allowDevOtpFallback) {
+                log.warn("Email send failed for signup OTP. Falling back to API OTP disclosure for {}", normalizedEmail);
+                return AuthResponse.messageOnly("Email delivery failed. Use this verification code for now: " + otpCode);
+            }
+            throw mailException;
+        }
 
         return AuthResponse.messageOnly("A 4-digit verification code has been sent to your email.");
     }
@@ -155,6 +174,7 @@ public class AuthService {
 
         String otpCode = generateOtpCode();
         passwordResetOtps.put(normalizedEmail, new PasswordResetOtpEntry(otpCode, LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES)));
+        log.info("Password reset OTP generated for {}: {} (expires in {} minutes)", normalizedEmail, otpCode, OTP_EXPIRY_MINUTES);
         sendEmail(normalizedEmail, "EduTrack password reset code", buildPasswordResetOtpBody(otpCode));
 
         return AuthResponse.messageOnly("If the email exists, a 4-digit verification code has been sent.");
@@ -369,8 +389,11 @@ public class AuthService {
     private void sendEmail(String toAddress, String subject, String body) {
         JavaMailSender javaMailSender = mailSenderProvider.getIfAvailable();
         if (javaMailSender == null) {
-            log.info("Mail sender not configured. OTP email to {} -> {}", toAddress, body);
-            return;
+            throw new AuthException("Email service is unavailable. Please configure SMTP and try again.");
+        }
+
+        if (mailUsername == null || mailUsername.isBlank() || mailPassword == null || mailPassword.isBlank()) {
+            throw new AuthException("Email service is not configured. Set MAIL_USERNAME and MAIL_PASSWORD, then retry signup.");
         }
 
         try {
@@ -381,8 +404,9 @@ public class AuthService {
             helper.setSubject(subject);
             helper.setText(body, false);
             javaMailSender.send(message);
-        } catch (MessagingException ex) {
-            throw new AuthException("Unable to send verification email");
+        } catch (MessagingException | MailException ex) {
+            log.warn("Failed to send verification email to {}: {}", toAddress, ex.getMessage());
+            throw new AuthException("Unable to send verification email. Check SMTP credentials and MAIL_FROM, then try again.");
         }
     }
 
