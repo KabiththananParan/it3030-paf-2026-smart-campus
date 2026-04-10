@@ -4,8 +4,8 @@ import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
 
 const adminSections = ['Users', 'Resources', 'Bookings', 'Notifications']
-const API_BASE_URL = 'http://localhost:8080/api/auth/admin/users'
-const NOTIFICATION_API_URL = 'http://localhost:8080/api/auth/notification-preferences'
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api/auth/admin/users`
+const NOTIFICATION_API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/auth/notification-preferences`
 const notificationCategoryLabels = {
   BOOKING_UPDATES: 'Booking Updates',
   MAINTENANCE_ALERTS: 'Maintenance Alerts',
@@ -145,7 +145,7 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/auth/admin/users', {
+      const response = await fetch(API_BASE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

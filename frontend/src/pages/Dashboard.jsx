@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
 
-const NOTIFICATION_API_URL = 'http://localhost:8080/api/auth/notification-preferences'
+const NOTIFICATION_API_URL = `${import.meta.env.VITE_API_BASE_URL}/api/auth/notification-preferences`
 const notificationCategoryLabels = {
   BOOKING_UPDATES: 'Booking Updates',
   MAINTENANCE_ALERTS: 'Maintenance Alerts',
