@@ -1,20 +1,110 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import ResourceListPage from "./pages/resources/ResourceListPage.jsx";
-import ManageResourcePage from "./pages/resources/ManageResourcePage.jsx";
-import AddResourcePage from "./pages/resources/AddResourcePage.jsx";
-import ResourceDetailsPage from './pages/resources/ResourceDetailsPage';
+import { Navigate, Route, Routes } from 'react-router-dom'
+import AdminDashboard from './pages/AdminDashboard.jsx'
+import BookingApprovalPage from './pages/BookingApprovalPage.jsx'
+import BookingCalendarPage from './pages/BookingCalendarPage.jsx'
+import BookingFormPage from './pages/BookingFormPage.jsx'
+import BookingQrDetailsPage from './pages/BookingQrDetailsPage.jsx'
+import Dashboard from './pages/Dashboard.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import Home from './pages/Home.jsx'
+import Login from './pages/Login.jsx'
+import ManagerDashboard from './pages/ManagerDashboard.jsx'
+import MyBookingsPage from './pages/MyBookingsPage.jsx'
+import SignUp from './pages/SignUp.jsx'
+import TechnicianDashboard from './pages/TechnicianDashboard.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import { ROLES } from './auth/roles.js'
 
 function App() {
-    return (
-        <Routes>
-            <Route path="/" element={<ResourceListPage />} />
-            <Route path="/resources" element={<ResourceListPage />} />
-            <Route path="/admin/resource/add" element={<AddResourcePage />} />
-            <Route path="/admin/resource/manage/:id" element={<ManageResourcePage />} />
-            <Route path="/resource/details/:id" element={<ResourceDetailsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-    );
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <Navigate to="/bookings/form" replace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/form"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <BookingFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/my"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <MyBookingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/approval"
+        element={
+          <ProtectedRoute minRole={ROLES.MANAGER}>
+            <BookingApprovalPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/calendar"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <BookingCalendarPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings/scan/:token"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <BookingQrDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/technician/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.TECHNICIAN}>
+            <TechnicianDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.MANAGER}>
+            <ManagerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
 }
 
-export default App;
+export default App
