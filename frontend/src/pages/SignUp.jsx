@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import logo from '../assets/edutrack.png'
-import { API_BASE_URL } from '../config.js'
+import { requestSignupCode, verifySignupCode } from '../api/authApi.js'
 
 const initialForm = {
   name: '',
@@ -21,6 +21,8 @@ const SignUp = () => {
   const [touched, setTouched] = useState({})
   const [submitMessage, setSubmitMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [verificationStep, setVerificationStep] = useState('details')
+  const [verificationCode, setVerificationCode] = useState('')
 
   const passwordChecks = {
     minLength: formData.password.length >= 8,
@@ -135,6 +137,67 @@ const SignUp = () => {
   const handleSubmit = async (event) => {
     event.preventDefault()
 
+    if (verificationStep === 'details') {
+      const nextErrors = validateAll(formData)
+      setErrors(nextErrors)
+      setTouched({
+        name: true,
+        itNumber: true,
+        email: true,
+        password: true,
+        confirmPassword: true,
+      })
+
+      const hasErrors = Object.values(nextErrors).some(Boolean)
+      if (hasErrors) {
+        setSubmitMessage('Please fix the highlighted fields before submitting.')
+        return
+      }
+
+      setIsSubmitting(true)
+      try {
+        const response = await requestSignupCode({
+          fullName: formData.name.trim(),
+          itNumber: formData.itNumber.trim().toUpperCase(),
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+        })
+
+        setSubmitMessage(response.message || 'A verification code has been sent to your email.')
+        setVerificationStep('verify')
+      } catch {
+        setSubmitMessage('Cannot connect to server. Please start backend and try again.')
+      } finally {
+        setIsSubmitting(false)
+      }
+
+      return
+    }
+
+    if (!verificationCode.trim()) {
+      setSubmitMessage('Enter the 4-digit verification code sent to your email.')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const data = await verifySignupCode({
+        email: formData.email.trim().toLowerCase(),
+        code: verificationCode.trim(),
+      })
+
+      localStorage.setItem('auth_it_number', formData.itNumber.trim().toUpperCase())
+      setSubmitMessage(data.message || 'Signup successful. Redirecting to login...')
+      setTimeout(() => navigate('/login', { replace: true }), 800)
+    } catch (submitError) {
+      setSubmitMessage(submitError.message || 'Invalid or expired code. Please request a new code and try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResendCode = async () => {
     const nextErrors = validateAll(formData)
     setErrors(nextErrors)
     setTouched({
@@ -147,35 +210,24 @@ const SignUp = () => {
 
     const hasErrors = Object.values(nextErrors).some(Boolean)
     if (hasErrors) {
-      setSubmitMessage('Please fix the highlighted fields before submitting.')
+      setSubmitMessage('Fix the form before requesting a new code.')
+      setVerificationStep('details')
       return
     }
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fullName: formData.name.trim(),
-          itNumber: formData.itNumber.trim().toUpperCase(),
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
-          confirmPassword: formData.confirmPassword,
-        }),
+      const response = await requestSignupCode({
+        fullName: formData.name.trim(),
+        itNumber: formData.itNumber.trim().toUpperCase(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
       })
 
-      const data = await response.json()
-      if (!response.ok) {
-        setSubmitMessage(data.message || 'Signup failed. Please try again.')
-        return
-      }
-
-      localStorage.setItem('auth_it_number', formData.itNumber.trim().toUpperCase())
-      setSubmitMessage('Signup successful. Redirecting to login...')
-      setTimeout(() => navigate('/login', { replace: true }), 800)
+      setVerificationCode('')
+      setSubmitMessage(response.message || 'A new verification code has been sent to your email.')
+      setVerificationStep('verify')
     } catch {
       setSubmitMessage('Cannot connect to server. Please start backend and try again.')
     } finally {
@@ -351,19 +403,48 @@ const SignUp = () => {
               <p className="text-xs text-red-500">{errors.confirmPassword}</p>
             ) : null}
 
+            {verificationStep === 'verify' ? (
+              <div className="space-y-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                <p className="text-sm font-semibold text-blue-950">Enter the 4-digit code sent to {formData.email || 'your email'}.</p>
+                <div className="flex items-center border-b border-blue-200 py-2 transition focus-within:border-blue-900">
+                  <svg className="mr-3 h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <input
+                    name="verificationCode"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="1234"
+                    className="w-full bg-transparent font-bold tracking-[0.5em] text-blue-950 outline-none placeholder:text-blue-300"
+                    value={verificationCode}
+                    onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isSubmitting}
+                  className="text-sm font-semibold text-blue-900 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Resend code
+                </button>
+              </div>
+            ) : null}
+
             <div className="pt-4">
               <button
                 type="submit"
                 disabled={isSubmitting}
                 className="water-button flex w-48 items-center justify-between rounded-full px-8 py-3 font-semibold text-white shadow-lg shadow-blue-900/30 transition hover:brightness-110"
               >
-                {isSubmitting ? 'Signing Up...' : 'Sign Up'}
+                {isSubmitting ? (verificationStep === 'verify' ? 'Verifying...' : 'Signing Up...') : verificationStep === 'verify' ? 'Verify Code' : 'Sign Up'}
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </button>
               {submitMessage ? (
-                <p className={`mt-3 text-sm ${submitMessage.startsWith('Validation passed') ? 'text-green-600' : 'text-red-500'}`}>
+                <p className={`mt-3 text-sm ${submitMessage.toLowerCase().includes('sent to your email') || submitMessage.toLowerCase().includes('successful') ? 'text-green-600' : 'text-red-500'}`}>
                   {submitMessage}
                 </p>
               ) : null}

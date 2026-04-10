@@ -6,8 +6,10 @@ import com.edutrack.backend.auth.dto.AdminUpdateUserRequest;
 import com.edutrack.backend.auth.dto.AdminUserDto;
 import com.edutrack.backend.auth.dto.ForgotPasswordRequest;
 import com.edutrack.backend.auth.dto.LoginRequest;
+import com.edutrack.backend.auth.dto.ResetPasswordRequest;
 import com.edutrack.backend.auth.dto.NotificationPreferencesResponse;
 import com.edutrack.backend.auth.dto.SignUpRequest;
+import com.edutrack.backend.auth.dto.VerifySignUpRequest;
 import com.edutrack.backend.auth.dto.UpdateNotificationPreferencesRequest;
 import com.edutrack.backend.auth.service.AuthService;
 import com.edutrack.backend.auth.service.NotificationPreferenceService;
@@ -40,6 +42,12 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signUp(@Valid @RequestBody SignUpRequest request) {
         AuthResponse response = authService.signUp(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/signup/verify")
+    public ResponseEntity<AuthResponse> verifySignUp(@Valid @RequestBody VerifySignUpRequest request) {
+        AuthResponse response = authService.verifySignUpCode(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -52,6 +60,12 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         AuthResponse response = authService.forgotPassword(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password/verify")
+    public ResponseEntity<AuthResponse> verifyPasswordReset(@Valid @RequestBody ResetPasswordRequest request) {
+        AuthResponse response = authService.verifyPasswordReset(request);
         return ResponseEntity.ok(response);
     }
 
