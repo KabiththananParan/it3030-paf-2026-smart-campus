@@ -87,9 +87,6 @@ const formatDateTime = (value) =>
     minute: '2-digit',
   })
 
-const getResourceById = (resourceId) =>
-  fallbackResources.find((resource) => resource.id === Number(resourceId)) || fallbackResources[0]
-
 const Booking = () => {
   const navigate = useNavigate()
   const preselectedResourceId = new URLSearchParams(window.location.search).get('resourceId')
@@ -105,6 +102,8 @@ const Booking = () => {
   const [resources, setResources] = useState(fallbackResources)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingBookingId, setEditingBookingId] = useState(null)
+  const [editFormData, setEditFormData] = useState(null)
   const [loadingMode, setLoadingMode] = useState('preview')
 
   if (!savedUser) {
@@ -116,6 +115,11 @@ const Booking = () => {
   const userEmail = user.email || ''
   const userFullName = user.fullName || 'Student User'
   const userItNumber = user.itNumber || user.itNo || localStorage.getItem('auth_it_number') || 'IT Number'
+  const getResourceById = (resourceId) =>
+    resources.find((resource) => resource.id === Number(resourceId)) ||
+    fallbackResources.find((resource) => resource.id === Number(resourceId)) ||
+    resources[0] ||
+    fallbackResources[0]
   const selectedResource = resources.find((resource) => resource.id === Number(formData.resourceId)) || resources[0]
 
   const pendingCount = bookings.filter((booking) => booking.status === 'PENDING').length
@@ -378,6 +382,176 @@ const Booking = () => {
     }
   }
 
+  const handleStartEdit = (booking) => {
+    setEditingBookingId(booking.id)
+    setEditFormData({
+      resourceId: String(booking.resourceId || selectedResource?.id || resources[0]?.id || fallbackResources[0].id),
+      bookingDate: booking.bookingDate,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      purpose: booking.purpose || '',
+      expectedAttendees: String(booking.expectedAttendees || 1),
+    })
+    resetMessages()
+  }
+
+  const handleEditFieldChange = (event) => {
+    const { name, value } = event.target
+    setEditFormData((current) => ({
+      ...current,
+      [name]: value,
+    }))
+    resetMessages()
+  }
+
+  const handleCancelEdit = () => {
+    setEditingBookingId(null)
+    setEditFormData(null)
+  }
+
+  const validateEditForm = () => {
+    if (!editFormData) {
+      return 'No booking selected for edit.'
+    }
+
+    if (!editFormData.bookingDate) {
+      return 'Select a booking date.'
+    }
+
+    if (!editFormData.purpose.trim()) {
+      return 'Add a purpose for the booking.'
+    }
+
+    if (!editFormData.expectedAttendees || Number(editFormData.expectedAttendees) < 1) {
+      return 'Expected attendees should be at least 1.'
+    }
+
+    if (editFormData.startTime >= editFormData.endTime) {
+      return 'End time must be later than start time.'
+    }
+
+    return ''
+  }
+
+  const handleUpdateBooking = async (bookingId) => {
+    resetMessages()
+
+    const validationError = validateEditForm()
+    if (validationError) {
+      setFormError(validationError)
+      return
+    }
+
+    const editResource = getResourceById(editFormData.resourceId)
+    const hasLiveIdentity = Boolean(userEmail) && Boolean(userItNumber) && userItNumber !== 'IT Number'
+
+    if (!hasLiveIdentity) {
+      setBookings((current) => current.map((booking) => (
+        booking.id === bookingId
+          ? {
+              ...booking,
+              resourceId: Number(editFormData.resourceId),
+              resourceName: editResource.name,
+              resourceType: editResource.type,
+              bookingDate: editFormData.bookingDate,
+              startTime: editFormData.startTime,
+              endTime: editFormData.endTime,
+              purpose: editFormData.purpose.trim(),
+              expectedAttendees: Number(editFormData.expectedAttendees),
+            }
+          : booking
+      )))
+      setFormMessage('Booking updated in preview mode.')
+      handleCancelEdit()
+      return
+    }
+
+    try {
+      const response = await fetch(`${BOOKINGS_API_URL}/${bookingId}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resourceType: editResource.type,
+          resourceName: editResource.name,
+          bookingDate: editFormData.bookingDate,
+          startTime: editFormData.startTime,
+          endTime: editFormData.endTime,
+          purpose: editFormData.purpose.trim(),
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        const message = typeof data.message === 'string' ? data.message : 'Unable to update booking.'
+        setFormError(message)
+        return
+      }
+
+      setBookings((current) => current.map((booking) => (
+        booking.id === bookingId
+          ? {
+              ...booking,
+              ...data,
+              resourceId: Number(editFormData.resourceId),
+              expectedAttendees: Number(editFormData.expectedAttendees),
+            }
+          : booking
+      )))
+      setFormMessage('Booking updated successfully.')
+      handleCancelEdit()
+    } catch {
+      setFormError('Unable to connect to the booking service right now.')
+    }
+  }
+
+  const handleDelete = async (bookingId) => {
+    resetMessages()
+
+    const isConfirmed = window.confirm('Delete this booking request?')
+    if (!isConfirmed) {
+      return
+    }
+
+    const hasLiveIdentity = Boolean(userEmail) && Boolean(userItNumber) && userItNumber !== 'IT Number'
+
+    if (!hasLiveIdentity) {
+      setBookings((current) => current.filter((booking) => booking.id !== bookingId))
+      setFormMessage('Booking removed from preview list.')
+      if (editingBookingId === bookingId) {
+        handleCancelEdit()
+      }
+      return
+    }
+
+    try {
+      const response = await fetch(`${BOOKINGS_API_URL}/${bookingId}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        let message = 'Unable to delete booking.'
+        try {
+          const data = await response.json()
+          message = typeof data.message === 'string' ? data.message : message
+        } catch {
+          // Keep fallback message when delete response body is empty.
+        }
+        setFormError(message)
+        return
+      }
+
+      setBookings((current) => current.filter((booking) => booking.id !== bookingId))
+      setFormMessage('Booking deleted successfully.')
+      if (editingBookingId === bookingId) {
+        handleCancelEdit()
+      }
+    } catch {
+      setFormError('Unable to connect to the booking service right now.')
+    }
+  }
+
   const handleResourceSelect = (resourceId) => {
     const resource = getResourceById(resourceId)
     setFormData((current) => ({
@@ -620,6 +794,8 @@ const Booking = () => {
                   {bookings.map((booking) => {
                     const resource = getResourceById(booking.resourceId)
                     const canCancel = booking.status === 'PENDING' || booking.status === 'APPROVED'
+                    const canEdit = booking.status === 'PENDING'
+                    const canDelete = booking.status === 'CANCELLED' || booking.status === 'REJECTED'
 
                     return (
                       <article
@@ -659,15 +835,131 @@ const Booking = () => {
                             <span className="text-xs uppercase tracking-[0.18em] text-slate-400">{booking.resourceType || resource.type}</span>
                           )}
 
-                          {canCancel ? (
-                            <button
-                              onClick={() => handleCancel(booking.id)}
-                              className="rounded-full border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
-                            >
-                              Cancel Request
-                            </button>
-                          ) : null}
+                          <div className="flex flex-wrap gap-2 lg:justify-end">
+                            {canEdit ? (
+                              <button
+                                onClick={() => handleStartEdit(booking)}
+                                className="rounded-full border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                              >
+                                Edit
+                              </button>
+                            ) : null}
+
+                            {canCancel ? (
+                              <button
+                                onClick={() => handleCancel(booking.id)}
+                                className="rounded-full border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+                              >
+                                Cancel
+                              </button>
+                            ) : null}
+
+                            {canDelete ? (
+                              <button
+                                onClick={() => handleDelete(booking.id)}
+                                className="rounded-full border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-50"
+                              >
+                                Delete
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
+
+                        {editingBookingId === booking.id && editFormData ? (
+                          <div className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-4">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Edit Booking</p>
+                            <div className="mt-3 grid gap-3 md:grid-cols-2">
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-slate-600">Resource</span>
+                                <select
+                                  name="resourceId"
+                                  value={editFormData.resourceId}
+                                  onChange={handleEditFieldChange}
+                                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                                >
+                                  {resources.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                      {item.name} · {item.type}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-slate-600">Booking date</span>
+                                <input
+                                  type="date"
+                                  name="bookingDate"
+                                  value={editFormData.bookingDate}
+                                  onChange={handleEditFieldChange}
+                                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                                />
+                              </label>
+
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-slate-600">Start time</span>
+                                <input
+                                  type="time"
+                                  name="startTime"
+                                  value={editFormData.startTime}
+                                  onChange={handleEditFieldChange}
+                                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                                />
+                              </label>
+
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-slate-600">End time</span>
+                                <input
+                                  type="time"
+                                  name="endTime"
+                                  value={editFormData.endTime}
+                                  onChange={handleEditFieldChange}
+                                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                                />
+                              </label>
+
+                              <label className="block md:col-span-2">
+                                <span className="mb-1 block text-xs font-semibold text-slate-600">Purpose</span>
+                                <textarea
+                                  name="purpose"
+                                  rows="3"
+                                  value={editFormData.purpose}
+                                  onChange={handleEditFieldChange}
+                                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                                />
+                              </label>
+
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-slate-600">Expected attendees</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  name="expectedAttendees"
+                                  value={editFormData.expectedAttendees}
+                                  onChange={handleEditFieldChange}
+                                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateBooking(booking.id)}
+                                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800"
+                              >
+                                Save Changes
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="rounded-full border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
+                              >
+                                Cancel Edit
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
                     )
                   })}
