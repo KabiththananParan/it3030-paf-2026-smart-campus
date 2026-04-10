@@ -1,130 +1,70 @@
 package com.edutrack.backend.booking.dto;
-import com.edutrack.backend.booking.entity.BookingStatus;
+
+import com.edutrack.backend.booking.entity.Booking;
+import com.edutrack.backend.booking.enums.BookingStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
-public class BookingResponse {
-
-    private Long id;
-    private Long userId;
-    private Long resourceId;
-    private LocalDate bookingDate;
-    private LocalTime startTime;
-    private LocalTime endTime;
-    private String purpose;
-    private Integer expectedAttendees;
-    private BookingStatus status;
-    private String rejectionReason;
-    private String cancelReason;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-
-    public BookingResponse() {
+public record BookingResponse(
+        Long id,
+        String requesterName,
+        String requesterEmail,
+        String requesterItNumber,
+        String resourceType,
+        String resourceName,
+        String purpose,
+        LocalDate bookingDate,
+        LocalTime startTime,
+        LocalTime endTime,
+        BookingStatus status,
+        String adminNote,
+        String qrToken,
+        boolean checkedIn,
+        LocalDateTime checkedInAt,
+        String recurrenceGroupId,
+        Integer recurrenceIndex,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        Integer riskScore,
+        String riskLevel,
+        String recommendedAction,
+        List<String> riskReasons) {
+    public static BookingResponse from(Booking booking) {
+        return from(booking, null, null, null, List.of());
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public Long getResourceId() {
-        return resourceId;
-    }
-
-    public void setResourceId(Long resourceId) {
-        this.resourceId = resourceId;
-    }
-
-    public LocalDate getBookingDate() {
-        return bookingDate;
-    }
-
-    public void setBookingDate(LocalDate bookingDate) {
-        this.bookingDate = bookingDate;
-    }
-
-    public LocalTime getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(LocalTime startTime) {
-        this.startTime = startTime;
-    }
-
-    public LocalTime getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(LocalTime endTime) {
-        this.endTime = endTime;
-    }
-
-    public String getPurpose() {
-        return purpose;
-    }
-
-    public void setPurpose(String purpose) {
-        this.purpose = purpose;
-    }
-
-    public Integer getExpectedAttendees() {
-        return expectedAttendees;
-    }
-
-    public void setExpectedAttendees(Integer expectedAttendees) {
-        this.expectedAttendees = expectedAttendees;
-    }
-
-    public BookingStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(BookingStatus status) {
-        this.status = status;
-    }
-
-    public String getRejectionReason() {
-        return rejectionReason;
-    }
-
-    public void setRejectionReason(String rejectionReason) {
-        this.rejectionReason = rejectionReason;
-    }
-
-    public String getCancelReason() {
-        return cancelReason;
-    }
-
-    public void setCancelReason(String cancelReason) {
-        this.cancelReason = cancelReason;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
+    public static BookingResponse from(
+            Booking booking,
+            Integer riskScore,
+            String riskLevel,
+            String recommendedAction,
+            List<String> riskReasons) {
+        return new BookingResponse(
+                booking.getId(),
+                booking.getRequesterName(),
+                booking.getRequesterEmail(),
+                booking.getRequesterItNumber(),
+                booking.getResourceType(),
+                booking.getResourceName(),
+                booking.getPurpose(),
+                booking.getBookingDate(),
+                booking.getStartTime(),
+                booking.getEndTime(),
+                booking.getStatus(),
+                booking.getAdminNote(),
+                booking.getQrToken(),
+                booking.isCheckedIn(),
+                booking.getCheckedInAt(),
+                booking.getRecurrenceGroupId(),
+                booking.getRecurrenceIndex(),
+                booking.getCreatedAt(),
+                booking.getUpdatedAt(),
+                riskScore,
+                riskLevel,
+                recommendedAction,
+                riskReasons == null ? List.of() : riskReasons);
     }
 }

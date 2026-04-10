@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 
-const gmailRegex = /^[A-Za-z0-9._%+-]+@gmail\.com$/
+const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('')
@@ -17,14 +17,14 @@ const ForgotPassword = () => {
       return
     }
 
-    if (!gmailRegex.test(email.trim())) {
-      setError('Use a valid @gmail.com email address.')
+    if (!emailRegex.test(email.trim())) {
+      setError('Use a valid email address.')
       setSuccessMessage('')
       return
     }
 
     setError('')
-    setSuccessMessage('If your account exists, a password reset link has been sent to your Gmail.')
+    setSuccessMessage('If your account exists, a password reset link has been sent.')
   }
 
   return (
@@ -35,13 +35,13 @@ const ForgotPassword = () => {
             Account Recovery
           </p>
           <h1 className="text-3xl font-extrabold text-slate-900">Forgot Password</h1>
-          <p className="mt-2 text-sm text-slate-500">Enter your Gmail to receive a password reset link.</p>
+          <p className="mt-2 text-sm text-slate-500">Enter your email to receive a password reset link.</p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700" htmlFor="resetEmail">
-              Gmail Address
+              Email Address
             </label>
             <input
               id="resetEmail"
@@ -52,10 +52,10 @@ const ForgotPassword = () => {
                 setError('')
                 setSuccessMessage('')
               }}
-              placeholder="student@gmail.com"
+              placeholder="name@smartcampus.com"
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none ring-orange-200 transition focus:ring-4"
-              pattern="^[A-Za-z0-9._%+-]+@gmail\.com$"
-              title="Use your @gmail.com email address"
+              pattern="^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+              title="Use a valid email address"
               required
             />
           </div>

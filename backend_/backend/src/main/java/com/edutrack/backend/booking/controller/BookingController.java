@@ -1,16 +1,34 @@
 package com.edutrack.backend.booking.controller;
 
-import com.edutrack.backend.booking.dto.*;
+import com.edutrack.backend.booking.dto.AdminDecisionRequest;
+import com.edutrack.backend.booking.dto.AdminAnalyticsResponse;
+import com.edutrack.backend.booking.dto.BookingBatchResponse;
+import com.edutrack.backend.booking.dto.BookingResponse;
+import com.edutrack.backend.booking.dto.BookingSummaryResponse;
+import com.edutrack.backend.booking.dto.CreateBookingRequest;
+import com.edutrack.backend.booking.dto.StudentVerificationResponse;
+import com.edutrack.backend.booking.dto.UpdateBookingRequest;
+import com.edutrack.backend.booking.enums.BookingStatus;
 import com.edutrack.backend.booking.service.BookingService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/bookings")
+@RequestMapping("/api/bookings")
 public class BookingController {
 
     private final BookingService bookingService;
@@ -20,58 +38,115 @@ public class BookingController {
     }
 
     @PostMapping
-    public ResponseEntity<BookingResponse> createBooking(
-            @RequestParam Long userId,
-            @Valid @RequestBody BookingCreateRequest request
-    ) {
-        BookingResponse response = bookingService.createBooking(userId, request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
+    public ResponseEntity<BookingBatchResponse> createBooking(@Valid @RequestBody CreateBookingRequest request) {
+        BookingBatchResponse response = bookingService.createBooking(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/verify-student")
+    public ResponseEntity<StudentVerificationResponse> verifyStudentForAdmin(
+            @RequestParam String name,
+            @RequestParam String email,
+            @RequestParam String itNumber) {
+        StudentVerificationResponse response = bookingService.verifyStudentForAdmin(name, email, itNumber);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<BookingResponse>> getMyBookings(@RequestParam Long userId) {
-        return ResponseEntity.ok(bookingService.getMyBookings(userId));
+    public ResponseEntity<List<BookingResponse>> getMyBookings(@RequestParam String email) {
+        return ResponseEntity.ok(bookingService.getMyBookings(email));
+    }
+
+    @GetMapping("/my/upcoming")
+    public ResponseEntity<List<BookingResponse>> getMyUpcomingBookings(
+            @RequestParam String email,
+            @RequestParam(defaultValue = "14") int days) {
+        return ResponseEntity.ok(bookingService.getMyUpcomingBookings(email, days));
+    }
+
+    @GetMapping("/my/summary")
+    public ResponseEntity<BookingSummaryResponse> getMyBookingSummary(@RequestParam String email) {
+        return ResponseEntity.ok(bookingService.getMyBookingSummary(email));
     }
 
     @GetMapping
-    public ResponseEntity<List<BookingResponse>> getAllBookings() {
-        return ResponseEntity.ok(bookingService.getAllBookings());
+    public ResponseEntity<List<BookingResponse>> getBookings(
+            @RequestParam(required = false) BookingStatus status) {
+        List<BookingResponse> bookings = bookingService.getBookings(status);
+        return ResponseEntity.ok(bookings);
+    }
+
+    @GetMapping("/admin/analytics")
+    public ResponseEntity<AdminAnalyticsResponse> getAdminAnalytics() {
+        return ResponseEntity.ok(bookingService.getAdminAnalytics());
+    }
+
+    @GetMapping("/calendar")
+    public ResponseEntity<List<BookingResponse>> getCalendarBookings(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) String email) {
+        return ResponseEntity.ok(bookingService.getCalendarBookings(from, to, email));
+    }
+
+    @GetMapping("/{id:\\d+}")
+    public ResponseEntity<BookingResponse> getBookingById(@PathVariable Long id) {
+        BookingResponse booking = bookingService.getBookingById(id);
+        return ResponseEntity.ok(booking);
+    }
+
+    @GetMapping("/qr/{token}")
+    public ResponseEntity<BookingResponse> getBookingByQrToken(@PathVariable String token) {
+        BookingResponse booking = bookingService.getBookingByQrToken(token);
+        return ResponseEntity.ok(booking);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BookingResponse> updateBooking(
             @PathVariable Long id,
-            @RequestParam Long userId,
-            @Valid @RequestBody BookingUpdateRequest request
-    ) {
-        return ResponseEntity.ok(bookingService.updateBooking(id, userId, request));
+            @RequestParam String email,
+            @Valid @RequestBody UpdateBookingRequest request) {
+        BookingResponse updated = bookingService.updateBooking(id, email, request);
+        return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/approve")
     public ResponseEntity<BookingResponse> approveBooking(
             @PathVariable Long id,
-            @RequestBody(required = false) BookingApprovalRequest request
-    ) {
-        if (request == null) {
-            request = new BookingApprovalRequest();
-        }
-        return ResponseEntity.ok(bookingService.approveBooking(id, request));
+            @Valid @RequestBody AdminDecisionRequest request) {
+        BookingResponse updated = bookingService.approveBooking(id, request);
+        return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/reject")
     public ResponseEntity<BookingResponse> rejectBooking(
             @PathVariable Long id,
-            @Valid @RequestBody BookingRejectionRequest request
-    ) {
-        return ResponseEntity.ok(bookingService.rejectBooking(id, request));
+            @Valid @RequestBody AdminDecisionRequest request) {
+        BookingResponse updated = bookingService.rejectBooking(id, request);
+        return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<BookingResponse> cancelBooking(
             @PathVariable Long id,
-            @RequestParam Long userId,
-            @Valid @RequestBody BookingCancelRequest request
-    ) {
-        return ResponseEntity.ok(bookingService.cancelBooking(id, userId, request));
+            @RequestParam String email) {
+        BookingResponse updated = bookingService.cancelBooking(id, email);
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteBooking(
+            @PathVariable Long id,
+            @RequestParam String email) {
+        bookingService.deleteBooking(id, email);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/check-in")
+    public ResponseEntity<BookingResponse> checkIn(
+            @PathVariable Long id,
+            @RequestParam String token) {
+        BookingResponse updated = bookingService.checkIn(id, token);
+        return ResponseEntity.ok(updated);
     }
 }
