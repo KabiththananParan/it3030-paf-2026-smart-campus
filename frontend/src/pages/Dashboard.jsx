@@ -63,6 +63,29 @@ const Dashboard = () => {
   const approvedBookings = bookings.filter((booking) => booking.status === 'APPROVED')
   const rejectedBookings = bookings.filter((booking) => booking.status === 'REJECTED')
   const unreadNotificationCount = bookingNotifications.filter((notification) => !notification.read).length
+  const notificationReadStorageKey = user?.email ? `read_booking_notifications_${user.email.toLowerCase()}` : null
+
+  const getStoredReadNotificationIds = () => {
+    if (!notificationReadStorageKey) {
+      return new Set()
+    }
+
+    try {
+      return new Set(JSON.parse(localStorage.getItem(notificationReadStorageKey) || '[]'))
+    } catch {
+      return new Set()
+    }
+  }
+
+  const saveReadNotificationIds = (updater) => {
+    if (!notificationReadStorageKey) {
+      return new Set()
+    }
+
+    const nextIds = updater(getStoredReadNotificationIds())
+    localStorage.setItem(notificationReadStorageKey, JSON.stringify([...nextIds]))
+    return nextIds
+  }
 
   const recentActivities = [...bookings]
     .sort((left, right) => toBookingDateTime(right) - toBookingDateTime(left))
@@ -269,6 +292,7 @@ const Dashboard = () => {
 
     const storageKey = `seen_approved_bookings_${user.email.toLowerCase()}`
     const seenApprovedIds = new Set(JSON.parse(localStorage.getItem(storageKey) || '[]'))
+    const readIds = getStoredReadNotificationIds()
     const latestApproved = approvedBookings.filter((booking) => !seenApprovedIds.has(String(booking.id)))
 
     if (latestApproved.length > 0 && bookingUpdatesEnabled) {
@@ -276,7 +300,7 @@ const Dashboard = () => {
         id: `approved-${booking.id}`,
         title: 'Booking Approved',
         detail: `${booking.resourceName} on ${booking.bookingDate} (${booking.startTime} - ${booking.endTime})`,
-        read: false,
+        read: readIds.has(`approved-${booking.id}`),
         timestamp: new Date().toISOString(),
       }))
       setBookingNotifications((prev) => {
@@ -285,6 +309,8 @@ const Dashboard = () => {
         latestNotifications.forEach((item) => {
           if (!known.has(item.id)) {
             merged.unshift(item)
+          } else if (item.read) {
+            merged.splice(merged.findIndex((notification) => notification.id === item.id), 1, item)
           }
         })
         return merged.slice(0, 8)
@@ -342,6 +368,7 @@ const Dashboard = () => {
   }
 
   const handleMarkNotificationRead = (notificationId) => {
+    saveReadNotificationIds((currentIds) => new Set(currentIds).add(String(notificationId)))
     setBookingNotifications((prev) => prev.map((notification) => (
       notification.id === notificationId
         ? { ...notification, read: true }
@@ -350,6 +377,7 @@ const Dashboard = () => {
   }
 
   const handleMarkAllNotificationsRead = () => {
+    saveReadNotificationIds(() => new Set(bookingNotifications.map((notification) => String(notification.id))))
     setBookingNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
   }
 

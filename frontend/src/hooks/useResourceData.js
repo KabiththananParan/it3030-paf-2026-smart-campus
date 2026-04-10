@@ -8,7 +8,7 @@ export const useResourceData = (id = null) => {
         location: '',
         capacity: '',
         status: 'ACTIVE',
-        availability_Windows: ''
+        availabilityWindows: ''
     });
 
     const [loading, setLoading] = useState(!!id); // Only load if an ID exists

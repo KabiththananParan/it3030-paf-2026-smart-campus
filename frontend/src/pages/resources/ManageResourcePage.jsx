@@ -18,11 +18,12 @@ const ManageResourcePage = () => {
     const { resource, loading, handleChange } = useResourceData(id);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const availabilityWindow = resource?.availabilityWindows || resource?.availability_Windows || '';
 
     const getLivePreviewStatus = () => {
-        if (!resource?.availability_Windows) return "No Schedule Set";
+        if (!availabilityWindow) return "No Schedule Set";
 
-        const win = resource.availability_Windows.toUpperCase().trim();
+        const win = availabilityWindow.toUpperCase().trim();
         const now = new Date();
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const currentDayName = days[now.getDay()].toUpperCase();

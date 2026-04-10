@@ -14,6 +14,7 @@ const ResourceDetailsPage = () => {
     const navigate = useNavigate();
     const [resource, setResource] = useState(null);
     const [loading, setLoading] = useState(true);
+    const availabilityWindow = resource?.availabilityWindows || resource?.availability_Windows || '';
 
     // --- SMART STATUS CALCULATION ENGINE ---
     const getSmartStatus = (dbStatus, availabilityWindow) => {
@@ -84,7 +85,7 @@ const ResourceDetailsPage = () => {
     );
 
     // Calculate the live status based on current time
-    const liveStatus = getSmartStatus(resource.status, resource.availability_Windows);
+    const liveStatus = getSmartStatus(resource.status, availabilityWindow);
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-6 md:p-12 font-sans">
@@ -168,7 +169,16 @@ const ResourceDetailsPage = () => {
 
                             {/* Right Column: Innovative Calendar View */}
                             <div className="lg:col-span-2">
-                                <ResourceCalendar availabilityWindow={resource.availability_Windows} />
+                                {availabilityWindow ? (
+                                    <ResourceCalendar availabilityWindow={availabilityWindow} />
+                                ) : (
+                                    <div className="flex min-h-[520px] items-center justify-center rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 px-6 text-center">
+                                        <div>
+                                            <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Schedule not configured</p>
+                                            <p className="mt-2 text-sm text-slate-500">This resource does not have operating hours saved yet, so the availability grid cannot be shown.</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

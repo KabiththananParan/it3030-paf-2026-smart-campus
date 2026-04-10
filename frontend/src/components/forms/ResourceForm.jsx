@@ -78,23 +78,23 @@ const ResourceForm = ({ resource, handleChange, children }) => {
                 <div className="space-y-2">
                     <InputField
                         label="Operating Hours"
-                        name="availability_Windows"
-                        value={resource.availability_Windows || ''}
+                        name="availabilityWindows"
+                        value={resource.availabilityWindows || resource.availability_Windows || ''}
                         onChange={handleChange}
                         placeholder="e.g. MON-FRI 08:30 - 17:30"
                     />
 
                     <div className={`mt-2 p-4 rounded-2xl border border-dashed transition-all duration-300 ${
-                        isValidFormat(resource.availability_Windows) 
+                        isValidFormat(resource.availabilityWindows || resource.availability_Windows) 
                         ? 'bg-emerald-50/50 border-emerald-200' 
                         : 'bg-slate-50 border-slate-200'
                     }`}>
                         <div className="flex justify-between items-center mb-3">
                             <p className="text-[10px] font-black text-[#003366] uppercase tracking-widest flex items-center gap-2">
-                                <span className={`w-1.5 h-1.5 rounded-full ${isValidFormat(resource.availability_Windows) ? 'bg-emerald-500' : 'bg-slate-300 animate-pulse'}`}></span>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isValidFormat(resource.availabilityWindows || resource.availability_Windows) ? 'bg-emerald-500' : 'bg-slate-300 animate-pulse'}`}></span>
                                 Smart Calendar Guide
                             </p>
-                            {isValidFormat(resource.availability_Windows) && (
+                            {isValidFormat(resource.availabilityWindows || resource.availability_Windows) && (
                                 <span className="text-[8px] font-black text-emerald-600 uppercase bg-emerald-100 px-2 py-0.5 rounded-md">Valid Format</span>
                             )}
                         </div>
