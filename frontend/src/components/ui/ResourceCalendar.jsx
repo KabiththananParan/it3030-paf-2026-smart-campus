@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Calendar as CalendarIcon } from 'lucide-react';
 
-const ResourceCalendar = ({ availabilityWindow = "" }) => {
+const ResourceCalendar = ({ availabilityWindow = "", bookedSlotKeys = new Set() }) => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     const hours = [
@@ -94,7 +94,9 @@ const ResourceCalendar = ({ availabilityWindow = "" }) => {
                                 <span className="text-[10px] font-bold text-slate-400 uppercase">{hourObj.label}</span>
                             </div>
                             {days.map((day, dIdx) => {
-                                const available = isSlotAvailable(day, hourObj.value);
+                                const withinSchedule = isSlotAvailable(day, hourObj.value);
+                                const booked = bookedSlotKeys.has(`${day}-${hourObj.value}`);
+                                const available = withinSchedule && !booked;
                                 const isLiveNow = dIdx === todayIndex && (currentHour >= hourObj.value && currentHour < hourObj.value + 2);
 
                                 return (
@@ -103,7 +105,9 @@ const ResourceCalendar = ({ availabilityWindow = "" }) => {
                                         className={`h-14 rounded-2xl border transition-all duration-300 relative
                                             ${available
                                                 ? 'bg-[#003380] border-[#003380] shadow-md shadow-blue-600/10'
-                                                : 'bg-slate-400/60 border-slate-100 opacity-100'
+                                                : booked
+                                                    ? 'bg-rose-300/80 border-rose-200 opacity-100'
+                                                    : 'bg-slate-400/60 border-slate-100 opacity-100'
                                             }
                                             ${isLiveNow && available ? 'ring-4 ring-[#F39200] ring-offset-2 scale-[1.05] z-10' : ''}
                                         `}
@@ -118,6 +122,12 @@ const ResourceCalendar = ({ availabilityWindow = "" }) => {
                                         {isLiveNow && available && (
                                             <span className="absolute -top-2.5 -right-1 bg-[#F39200] text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
                                                 Active
+                                            </span>
+                                        )}
+
+                                        {booked && (
+                                            <span className="absolute -top-2.5 -right-1 bg-rose-500 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-tighter">
+                                                Booked
                                             </span>
                                         )}
                                     </div>
@@ -137,6 +147,10 @@ const ResourceCalendar = ({ availabilityWindow = "" }) => {
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded bg-slate-400 opacity-80" />
                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Unavailable</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-rose-400" />
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Booked</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded ring-2 ring-[#F39200] bg-[#003366]" />

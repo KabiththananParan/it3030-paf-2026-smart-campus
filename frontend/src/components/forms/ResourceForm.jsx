@@ -1,7 +1,7 @@
 import React from 'react';
 import InputField from '../common/InputField';
 
-const ResourceForm = ({ resource, handleChange, children }) => {
+const ResourceForm = ({ resource, handleChange, children, requireOperatingHours = false }) => {
     
     // Simple check to see if the current input matches basic expected patterns
     const isValidFormat = (str) => {
@@ -82,6 +82,7 @@ const ResourceForm = ({ resource, handleChange, children }) => {
                         value={resource.availabilityWindows || resource.availability_Windows || ''}
                         onChange={handleChange}
                         placeholder="e.g. MON-FRI 08:30 - 17:30"
+                        required={requireOperatingHours}
                     />
 
                     <div className={`mt-2 p-4 rounded-2xl border border-dashed transition-all duration-300 ${

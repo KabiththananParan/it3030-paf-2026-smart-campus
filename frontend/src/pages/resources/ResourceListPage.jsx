@@ -37,50 +37,43 @@ const ResourceListPage = () => {
         name: '', type: '', location: '', minCapacity: '', status: ''
     });
 
-    const hasAvailableSlots = (availabilityWindow) => {
-        if (!availabilityWindow) return false;
+    const getStatusPreview = (dbStatus, availabilityWindow) => {
+        const normalizedStatus = (dbStatus || '').toUpperCase();
+        if (normalizedStatus === 'OUT_OF_SERVICE') return 'OUT OF SERVICE';
+        if (!availabilityWindow) return 'No Schedule Set';
+
         const win = availabilityWindow.toUpperCase().trim();
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const now = new Date();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const currentDayName = days[now.getDay()].toUpperCase();
+        const currentHourValue = now.getHours() + now.getMinutes() / 60;
 
-        const isSlotAvailable = (dayName, hourValue) => {
-            const timeMatch = win.match(/(\d{1,2}[:.]\d{2})\s*[-TO/]\s*(\d{1,2}[:.]\d{2})/);
-            let isTimeAllowed = true;
-            if (timeMatch) {
-                const startStr = timeMatch[1].replace('.', ':');
-                const endStr = timeMatch[2].replace('.', ':');
-                const [sH, sM] = startStr.split(':').map(Number);
-                const [eH, eM] = endStr.split(':').map(Number);
-                const startValue = sH + sM / 60;
-                const endValue = eH + eM / 60;
-                isTimeAllowed = hourValue >= startValue && hourValue < endValue;
-            }
+        const timeMatch = win.match(/(\d{1,2}[:.]\d{2})\s*[-TO/]\s*(\d{1,2}[:.]\d{2})/);
+        if (!timeMatch) return 'Invalid Format';
 
-            const dayPart = win.split(/\d/)[0].trim();
-            let isDayAllowed = false;
-            if (dayPart.includes('DAILY')) {
-                isDayAllowed = true;
-            } else if (dayPart.includes('-') || dayPart.includes('TO')) {
-                const parts = dayPart.split(/[-]|TO/);
-                const startIdx = days.findIndex((d) => d.toUpperCase() === parts[0].trim());
-                const endIdx = days.findIndex((d) => d.toUpperCase() === parts[1].trim());
-                const currentDayIdx = days.indexOf(dayName);
-                isDayAllowed = currentDayIdx >= startIdx && currentDayIdx <= endIdx;
-            } else {
-                isDayAllowed = dayPart.includes(dayName.toUpperCase());
-            }
+        const [sH, sM] = timeMatch[1].replace('.', ':').split(':').map(Number);
+        const [eH, eM] = timeMatch[2].replace('.', ':').split(':').map(Number);
+        const isTimeAllowed = currentHourValue >= sH + sM / 60 && currentHourValue < eH + eM / 60;
 
-            return isDayAllowed && isTimeAllowed;
-        };
+        const dayPart = win.split(/\d/)[0].trim();
+        let isDayAllowed = false;
+        if (dayPart.includes('DAILY')) isDayAllowed = true;
+        else if (dayPart.includes('-')) {
+            const parts = dayPart.split('-');
+            const startIdx = days.map((d) => d.toUpperCase()).indexOf(parts[0].trim());
+            const endIdx = days.map((d) => d.toUpperCase()).indexOf(parts[1].trim());
+            isDayAllowed = now.getDay() >= startIdx && now.getDay() <= endIdx;
+        } else {
+            isDayAllowed = dayPart.includes(currentDayName);
+        }
 
-        const hours = [8, 10, 12, 14, 16, 18];
-        return days.some((day) => hours.some((hour) => isSlotAvailable(day, hour)));
+        return isDayAllowed && isTimeAllowed ? 'Currently: AVAILABLE' : 'Currently: BUSY';
     };
 
-    const getCalculatedStatus = (dbStatus, availabilityWindow) => {
-        const normalizedStatus = (dbStatus || '').toUpperCase();
-        if (normalizedStatus === 'OUT_OF_SERVICE') return 'OUT_OF_SERVICE';
-        if (normalizedStatus === 'AVAILABLE') return 'ACTIVE';
-        return hasAvailableSlots(availabilityWindow) ? 'ACTIVE' : 'BUSY';
+    const getCardTone = (previewText) => {
+        if (previewText.includes('AVAILABLE')) return 'ACTIVE';
+        if (previewText.includes('OUT OF SERVICE')) return 'OUT_OF_SERVICE';
+        return 'BUSY';
     };
 
     useEffect(() => {
@@ -109,7 +102,7 @@ const ResourceListPage = () => {
     };
 
     const filteredResources = resources.filter(item => {
-        const currentStatus = getCalculatedStatus(item.status, item.availabilityWindows || item.availability_Windows);
+        const currentStatus = getCardTone(getStatusPreview(item.status, item.availabilityWindows || item.availability_Windows));
         return (
             item.name.toLowerCase().includes(filters.name.toLowerCase()) &&
             item.type.toLowerCase().includes(filters.type.toLowerCase()) &&
@@ -190,7 +183,8 @@ const ResourceListPage = () => {
             <main className="max-w-7xl mx-auto px-6 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredResources.map((item) => {
-                        const displayStatus = getCalculatedStatus(item.status, item.availabilityWindows || item.availability_Windows);
+                        const statusPreview = getStatusPreview(item.status, item.availabilityWindows || item.availability_Windows);
+                        const displayStatus = getCardTone(statusPreview);
 
                         return (
                             <div key={item.id} className={`group ${getTypeStyles(item.type)} border rounded-[2rem] p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between h-full`}>
@@ -207,7 +201,7 @@ const ResourceListPage = () => {
                                                         'border-rose-200 text-rose-600'
                                                 }`}>
                                                 <LiveStatusIndicator status={displayStatus} />
-                                                {displayStatus === 'ACTIVE' ? 'Available' : displayStatus.replace('_', ' ')}
+                                                {statusPreview}
                                             </span>
                                         </div>
                                     </div>

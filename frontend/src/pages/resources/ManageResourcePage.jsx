@@ -51,6 +51,13 @@ const ManageResourcePage = () => {
 
     const handleUpdate = async (e) => {
         e.preventDefault();
+        const operatingHours = (resource?.availabilityWindows || resource?.availability_Windows || '').trim();
+
+        if (!operatingHours) {
+            setMessage({ type: 'error', text: 'Validation Failed: Operating Hours is required.' });
+            return;
+        }
+
         if (resource.capacity < 0) {
             setMessage({ type: 'error', text: 'Validation Failed: Capacity cannot be negative.' });
             return;
@@ -119,7 +126,7 @@ const ManageResourcePage = () => {
                     <form onSubmit={handleUpdate} className="p-10 space-y-8">
                         <StatusAlert message={message} />
 
-                        <ResourceForm resource={resource} handleChange={handleChange}>
+                        <ResourceForm resource={resource} handleChange={handleChange} requireOperatingHours>
                             {/* Tips DIV removed from here */}
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <ActionButton

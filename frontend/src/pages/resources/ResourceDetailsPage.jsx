@@ -5,6 +5,7 @@ import {
     Presentation, Briefcase, ChevronLeft, CalendarDays, Loader2
 } from 'lucide-react';
 import resourceApi from '../../api/resourceApi';
+import { getCalendarBookings } from '../../api/bookingApi';
 
 // Import the Innovative Component
 import ResourceCalendar from '../../components/ui/ResourceCalendar';
@@ -14,7 +15,63 @@ const ResourceDetailsPage = () => {
     const navigate = useNavigate();
     const [resource, setResource] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [bookedSlotKeys, setBookedSlotKeys] = useState(new Set());
     const availabilityWindow = resource?.availabilityWindows || resource?.availability_Windows || '';
+
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const toDateString = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getCurrentWeekRange = () => {
+        const today = new Date();
+        const start = new Date(today);
+        const end = new Date(today);
+        const day = today.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        start.setDate(today.getDate() + diffToMonday);
+        end.setDate(start.getDate() + 6);
+        return { from: toDateString(start), to: toDateString(end) };
+    };
+
+    const buildBookedSlotKeySet = (bookings, resourceName) => {
+        const keys = new Set();
+        const normalizedResourceName = (resourceName || '').trim().toLowerCase();
+
+        bookings
+            .filter((booking) => {
+                const status = (booking?.status || '').toUpperCase();
+                const bookingResourceName = (booking?.resourceName || '').trim().toLowerCase();
+                return (
+                    (status === 'APPROVED' || status === 'PENDING') &&
+                    bookingResourceName === normalizedResourceName
+                );
+            })
+            .forEach((booking) => {
+                if (!booking?.bookingDate || !booking?.startTime || !booking?.endTime) return;
+
+                const date = new Date(`${booking.bookingDate}T00:00:00`);
+                const dayName = dayNames[date.getDay()];
+                const [startHour, startMinute] = String(booking.startTime).split(':').map(Number);
+                const [endHour, endMinute] = String(booking.endTime).split(':').map(Number);
+                const startValue = startHour + (startMinute || 0) / 60;
+                const endValue = endHour + (endMinute || 0) / 60;
+
+                [8, 10, 12, 14, 16, 18].forEach((slotHour) => {
+                    const slotEnd = slotHour + 2;
+                    const overlaps = startValue < slotEnd && endValue > slotHour;
+                    if (overlaps) {
+                        keys.add(`${dayName}-${slotHour}`);
+                    }
+                });
+            });
+
+        return keys;
+    };
 
     // --- SMART STATUS CALCULATION ENGINE ---
     const getSmartStatus = (dbStatus, availabilityWindow) => {
@@ -71,6 +128,19 @@ const ResourceDetailsPage = () => {
                 setLoading(false);
             });
     }, [id]);
+
+    useEffect(() => {
+        if (!resource?.name) return;
+
+        const { from, to } = getCurrentWeekRange();
+        getCalendarBookings({ from, to })
+            .then((bookings) => {
+                setBookedSlotKeys(buildBookedSlotKeySet(Array.isArray(bookings) ? bookings : [], resource.name));
+            })
+            .catch(() => {
+                setBookedSlotKeys(new Set());
+            });
+    }, [resource]);
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -170,7 +240,7 @@ const ResourceDetailsPage = () => {
                             {/* Right Column: Innovative Calendar View */}
                             <div className="lg:col-span-2">
                                 {availabilityWindow ? (
-                                    <ResourceCalendar availabilityWindow={availabilityWindow} />
+                                    <ResourceCalendar availabilityWindow={availabilityWindow} bookedSlotKeys={bookedSlotKeys} />
                                 ) : (
                                     <div className="flex min-h-[520px] items-center justify-center rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 px-6 text-center">
                                         <div>
