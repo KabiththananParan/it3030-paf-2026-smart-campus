@@ -642,7 +642,12 @@ public class BookingService {
             throw new BookingException("Student email and IT number do not match", HttpStatus.CONFLICT);
         }
 
-        if (userAccount.getRole() == null || !"STUDENT".equalsIgnoreCase(userAccount.getRole().trim())) {
+        if (userAccount.getRole() == null) {
+            throw new BookingException("Only student accounts can be booked by admin", HttpStatus.FORBIDDEN);
+        }
+
+        String normalizedRole = userAccount.getRole().trim().toUpperCase(Locale.ROOT);
+        if (!"STUDENT".equals(normalizedRole) && !"USER".equals(normalizedRole)) {
             throw new BookingException("Only student accounts can be booked by admin", HttpStatus.FORBIDDEN);
         }
 
