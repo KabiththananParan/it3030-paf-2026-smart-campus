@@ -1,4 +1,4 @@
-const defaultApiBase = `${window.location.protocol}//${window.location.hostname}:8081`
+const defaultApiBase = `${window.location.protocol}//${window.location.hostname}:8080`
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL || defaultApiBase}/api/bookings`
 
 const parseResponse = async (response) => {
