@@ -2,10 +2,11 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
+import { API_BASE_URL } from '../config.js'
 
 const adminSections = ['Users', 'Resources', 'Bookings', 'Notifications']
-const API_BASE_URL = 'http://localhost:8080/api/auth/admin/users'
-const NOTIFICATION_API_URL = 'http://localhost:8080/api/auth/notification-preferences'
+const USERS_API_URL = `${API_BASE_URL}/api/auth/admin/users`
+const NOTIFICATION_API_URL = `${API_BASE_URL}/api/auth/notification-preferences`
 const notificationCategoryLabels = {
   BOOKING_UPDATES: 'Booking Updates',
   MAINTENANCE_ALERTS: 'Maintenance Alerts',
@@ -155,7 +156,7 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/auth/admin/users', {
+      const response = await fetch(USERS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
