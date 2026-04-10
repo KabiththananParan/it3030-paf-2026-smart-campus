@@ -4,6 +4,7 @@ import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
 import { API_BASE_URL } from '../config.js'
 import { getMyBookings } from '../api/bookingApi.js'
+import { getMyTickets, getTicketNotifications, markTicketNotificationAsRead } from '../api/ticketApi.js'
 
 const NOTIFICATION_API_URL = `${API_BASE_URL}/api/auth/notification-preferences`
 const notificationCategoryLabels = {
@@ -32,15 +33,23 @@ const Dashboard = () => {
   const [bookings, setBookings] = useState([])
   const [bookingError, setBookingError] = useState('')
   const [isBookingsLoading, setIsBookingsLoading] = useState(false)
+  const [tickets, setTickets] = useState([])
+  const [ticketError, setTicketError] = useState('')
+  const [isTicketsLoading, setIsTicketsLoading] = useState(false)
   const [bookingNotifications, setBookingNotifications] = useState([])
+  const [ticketNotifications, setTicketNotifications] = useState([])
   const [notificationPreferences, setNotificationPreferences] = useState({})
   const [notificationStatus, setNotificationStatus] = useState('')
   const [isNotificationLoading, setIsNotificationLoading] = useState(false)
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
+  const [ticketNotificationError, setTicketNotificationError] = useState('')
 
   const bookingUpdatesEnabled = notificationPreferences.BOOKING_UPDATES !== false
   const pendingRequests = bookings.filter((booking) => booking.status === 'PENDING')
   const approvedBookings = bookings.filter((booking) => booking.status === 'APPROVED')
+  const activeTickets = tickets.filter((ticket) => ['OPEN', 'IN_PROGRESS', 'AWAITING_FOR_REPLY'].includes(ticket.status))
+  const resolvedTickets = tickets.filter((ticket) => ['RESOLVED', 'CLOSED'].includes(ticket.status))
+  const unreadTicketNotificationCount = ticketNotifications.filter((item) => !item.read).length
 
   const taskCards = [
     {
@@ -66,6 +75,30 @@ const Dashboard = () => {
     },
   ]
 
+  const ticketCards = [
+    {
+      title: 'My ticket requests',
+      items: `${activeTickets.length} active request${activeTickets.length === 1 ? '' : 's'}`,
+      progress: tickets.length === 0 ? '0%' : `${Math.round((activeTickets.length / tickets.length) * 100)}%`,
+      color: 'bg-violet-700',
+      accent: 'bg-violet-200',
+    },
+    {
+      title: 'Resolved tickets',
+      items: `${resolvedTickets.length} resolved ticket${resolvedTickets.length === 1 ? '' : 's'}`,
+      progress: tickets.length === 0 ? '0%' : `${Math.round((resolvedTickets.length / tickets.length) * 100)}%`,
+      color: 'bg-emerald-600',
+      accent: 'bg-emerald-200',
+    },
+    {
+      title: 'Total ticket records',
+      items: `${tickets.length} ticket item${tickets.length === 1 ? '' : 's'}`,
+      progress: '100%',
+      color: 'bg-cyan-500',
+      accent: 'bg-cyan-200',
+    },
+  ]
+
   const loadBookings = async () => {
     if (!user?.email) {
       return
@@ -81,6 +114,24 @@ const Dashboard = () => {
       setBookingError(error.message || 'Failed to load your bookings.')
     } finally {
       setIsBookingsLoading(false)
+    }
+  }
+
+  const loadTickets = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    setIsTicketsLoading(true)
+    setTicketError('')
+
+    try {
+      const data = await getMyTickets()
+      setTickets(Array.isArray(data) ? data : [])
+    } catch (error) {
+      setTicketError(error.message || 'Failed to load your tickets.')
+    } finally {
+      setIsTicketsLoading(false)
     }
   }
 
@@ -108,12 +159,41 @@ const Dashboard = () => {
     }
   }
 
+  const fetchTicketNotifications = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    setTicketNotificationError('')
+    try {
+      const data = await getTicketNotifications()
+      setTicketNotifications(Array.isArray(data) ? data : [])
+    } catch (error) {
+      setTicketNotificationError(error.message || 'Failed to load ticket notifications.')
+    }
+  }
+
   useEffect(() => {
     if (user?.email) {
       fetchNotificationPreferences()
+      void fetchTicketNotifications()
       void loadBookings()
+      void loadTickets()
     }
   }, [user?.email])
+
+  const handleReadTicketNotification = async (notificationId) => {
+    try {
+      await markTicketNotificationAsRead(notificationId)
+      setTicketNotifications((prev) => prev.map((item) => (
+        item.id === notificationId
+          ? { ...item, read: true }
+          : item
+      )))
+    } catch {
+      // Ignore temporary failures for read state changes.
+    }
+  }
 
   useEffect(() => {
     if (!user?.email) {
@@ -224,7 +304,7 @@ const Dashboard = () => {
                 onClick={() => {
                   if (section === 'Ticket') {
                     setActiveSection('Ticket')
-                    navigate('/tickets/new')
+                    navigate('/tickets/my')
                     return
                   }
 
@@ -257,7 +337,7 @@ const Dashboard = () => {
                 onClick={() => setActiveSection('Notifications')}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
               >
-                Notifications {bookingNotifications.length > 0 ? `(${bookingNotifications.length})` : ''}
+                Notifications {unreadTicketNotificationCount > 0 ? `(${unreadTicketNotificationCount})` : ''}
               </button>
               <button className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Quick Actions</button>
             </div>
@@ -268,17 +348,12 @@ const Dashboard = () => {
               <h1 className="text-3xl font-black text-slate-900">Hello, {userItNumber}</h1>
               <p className="text-sm text-slate-500">Your bookings, requests, and status updates at a glance.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => navigate('/resources')}
-              className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800"
-            >
-              Book Now
-            </button>
           </div>
 
           {isBookingsLoading ? <p className="mt-4 text-sm text-slate-500">Loading your bookings...</p> : null}
           {bookingError ? <p className="mt-4 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-700">{bookingError}</p> : null}
+          {isTicketsLoading ? <p className="mt-2 text-sm text-slate-500">Loading your tickets...</p> : null}
+          {ticketError ? <p className="mt-2 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-700">{ticketError}</p> : null}
 
           {bookingNotifications.length > 0 && bookingUpdatesEnabled ? (
             <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
@@ -326,14 +401,25 @@ const Dashboard = () => {
           {activeSection === 'Notifications' ? (
             <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <h2 className="text-lg font-black text-slate-900">My Notifications</h2>
-              {bookingNotifications.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">No booking approval notifications yet.</p>
+              {ticketNotificationError ? <p className="mt-3 text-sm text-rose-700">{ticketNotificationError}</p> : null}
+              {ticketNotifications.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-500">No ticket notifications yet.</p>
               ) : (
                 <div className="mt-3 space-y-2">
-                  {bookingNotifications.map((notification) => (
-                    <div key={notification.id} className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
-                      <p className="text-sm font-bold text-emerald-800">{notification.title}</p>
-                      <p className="text-sm text-slate-700">{notification.detail}</p>
+                  {ticketNotifications.map((notification) => (
+                    <div key={notification.id} className={`rounded-xl border bg-white px-3 py-2 ${notification.read ? 'border-slate-200' : 'border-cyan-200'}`}>
+                      <p className={`text-sm font-bold ${notification.read ? 'text-slate-900' : 'text-cyan-900'}`}>{notification.title}</p>
+                      <p className="text-sm text-slate-700">{notification.message}</p>
+                      <p className="mt-1 text-xs text-slate-500">{new Date(notification.createdAt).toLocaleString()}</p>
+                      {!notification.read ? (
+                        <button
+                          type="button"
+                          onClick={() => handleReadTicketNotification(notification.id)}
+                          className="mt-2 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                        >
+                          Mark as read
+                        </button>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -383,7 +469,18 @@ const Dashboard = () => {
             </section>
           ) : null}
 
-          <section className="mt-6 grid gap-4 md:grid-cols-3">
+          <section className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-black uppercase tracking-[0.18em] text-slate-600">Booking</h2>
+              <button
+                type="button"
+                onClick={() => navigate('/resources')}
+                className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+              >
+                Book Now
+              </button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
             {taskCards.map((card) => (
               <article key={card.title} className={`${card.color} rounded-2xl p-5 text-white`}>
                 <h3 className="text-xl font-extrabold leading-tight">{card.title}</h3>
@@ -394,6 +491,32 @@ const Dashboard = () => {
                 <p className="mt-2 text-xs font-semibold opacity-90">{card.progress}</p>
               </article>
             ))}
+            </div>
+          </section>
+
+          <section className="mt-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-black uppercase tracking-[0.18em] text-slate-600">Ticket</h2>
+              <button
+                type="button"
+                onClick={() => navigate('/tickets/new')}
+                className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+              >
+                Create Ticket Now
+              </button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+            {ticketCards.map((card) => (
+              <article key={card.title} className={`${card.color} rounded-2xl p-5 text-white`}>
+                <h3 className="text-xl font-extrabold leading-tight">{card.title}</h3>
+                <p className="mt-4 text-sm opacity-90">{card.items}</p>
+                <div className="mt-3 h-2 rounded-full bg-white/30">
+                  <div className={`${card.accent} h-2 rounded-full`} style={{ width: card.progress }}></div>
+                </div>
+                <p className="mt-2 text-xs font-semibold opacity-90">{card.progress}</p>
+              </article>
+            ))}
+            </div>
           </section>
 
           <section className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">

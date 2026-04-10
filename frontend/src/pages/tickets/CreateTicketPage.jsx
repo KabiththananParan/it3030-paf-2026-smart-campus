@@ -161,7 +161,7 @@ const CreateTicketPage = () => {
   return (
     <div className="min-h-screen bg-[#f5efe8] px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
-        <nav className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/60">
+        <nav className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-300/40">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -173,14 +173,14 @@ const CreateTicketPage = () => {
             <button
               type="button"
               onClick={() => navigate('/tickets/my')}
-              className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-100"
+              className="rounded-2xl border border-[#c8dff1] bg-[#eaf5fc] px-4 py-2 text-sm font-semibold text-[#1f4968] transition hover:bg-[#dceef9]"
             >
               My Tickets
             </button>
             <button
               type="button"
               onClick={() => navigate('/tickets/new')}
-              className="rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="rounded-2xl border border-[#0b1739] bg-[#0b1739] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#14224a]"
             >
               New Request
             </button>
@@ -188,10 +188,10 @@ const CreateTicketPage = () => {
           <p className="text-sm font-semibold text-slate-600">Request Form</p>
         </nav>
 
-        <header className="mb-6 rounded-4xl border border-slate-200 bg-linear-to-r from-slate-50 to-cyan-50 p-8 shadow-lg shadow-slate-200/70">
-          <p className="text-xs uppercase tracking-[0.34em] text-slate-500">Service Desk</p>
-          <h1 className="mt-3 text-3xl font-black text-slate-900 sm:text-5xl">Submit Request / Inquiry</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+        <header className="mb-6 rounded-4xl border border-[#c3d6e8] bg-linear-to-r from-[#0b1739] to-[#17366c] p-8 shadow-lg shadow-slate-300/40">
+          <p className="text-xs uppercase tracking-[0.34em] text-[#9dc9e4]">Service Desk</p>
+          <h1 className="mt-3 text-3xl font-black text-white sm:text-5xl">Submit Request / Inquiry</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[#d2dcee]">
             Share your request details so the support team can route and respond quickly.
           </p>
         </header>
@@ -345,7 +345,7 @@ const CreateTicketPage = () => {
                     accept="image/*,application/pdf"
                     multiple
                     onChange={handleFileChange}
-                    className="mt-2 w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+                    className="mt-2 w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-[#0b1739] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
                   />
                 </label>
                 {fileSummary ? <p className="mt-2 text-xs text-slate-500">Selected: {fileSummary}</p> : null}
@@ -368,7 +368,7 @@ const CreateTicketPage = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-2xl bg-[#0b1739] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#14224a] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? 'Submitting...' : 'Create ticket'}
             </button>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
 import { API_BASE_URL } from '../config.js'
+import { getTicketNotifications, markTicketNotificationAsRead } from '../api/ticketApi.js'
 
 const adminSections = ['Users', 'Resources', 'Bookings', 'Tickets', 'Notifications']
 const USERS_API_URL = `${API_BASE_URL}/api/auth/admin/users`
@@ -15,13 +16,6 @@ const notificationCategoryLabels = {
   SYSTEM_ANNOUNCEMENTS: 'System Announcements',
   SECURITY_NOTICES: 'Security Notices',
 }
-
-const initialAdminNotifications = [
-  { id: 1, title: 'New booking request', detail: 'Computer Lab B needs approval.', time: '5 min ago', read: false },
-  { id: 2, title: 'Maintenance alert', detail: 'Projector fault reported in Hall A3.', time: '20 min ago', read: false },
-  { id: 3, title: 'System announcement', detail: 'Semester schedule update published.', time: '1 hour ago', read: true },
-]
-
 
 // Admin Dashboard
 
@@ -58,7 +52,9 @@ const AdminDashboard = () => {
   const [isNotificationLoading, setIsNotificationLoading] = useState(false)
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
-  const [adminNotifications, setAdminNotifications] = useState(initialAdminNotifications)
+  const [adminNotifications, setAdminNotifications] = useState([])
+  const [ticketNotificationError, setTicketNotificationError] = useState('')
+  const [isTicketNotificationLoading, setIsTicketNotificationLoading] = useState(false)
   const [resources, setResources] = useState([])
   const [isResourcesLoading, setIsResourcesLoading] = useState(false)
   const [resourcesStatus, setResourcesStatus] = useState('')
@@ -173,6 +169,23 @@ const AdminDashboard = () => {
     }
   }
 
+  const fetchAdminTicketNotifications = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    setIsTicketNotificationLoading(true)
+    setTicketNotificationError('')
+    try {
+      const data = await getTicketNotifications()
+      setAdminNotifications(Array.isArray(data) ? data : [])
+    } catch (error) {
+      setTicketNotificationError(error.message || 'Failed to load notifications.')
+    } finally {
+      setIsTicketNotificationLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (activeSection === 'Users') {
       fetchUsers()
@@ -196,6 +209,12 @@ const AdminDashboard = () => {
       fetchNotificationPreferences()
     }
   }, [activeSection, user?.email])
+
+  useEffect(() => {
+    if (user?.email) {
+      void fetchAdminTicketNotifications()
+    }
+  }, [user?.email])
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -414,16 +433,31 @@ const AdminDashboard = () => {
     }
   }
 
-  const handleMarkAllNotificationsRead = () => {
-    setAdminNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
+  const handleMarkAllNotificationsRead = async () => {
+    const unread = adminNotifications.filter((notification) => !notification.read)
+    if (unread.length === 0) {
+      return
+    }
+
+    try {
+      await Promise.all(unread.map((notification) => markTicketNotificationAsRead(notification.id)))
+      setAdminNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
+    } catch {
+      setTicketNotificationError('Failed to mark all notifications as read.')
+    }
   }
 
-  const handleReadNotificationMessage = (notificationId) => {
-    setAdminNotifications((prev) => prev.map((notification) => (
-      notification.id === notificationId
-        ? { ...notification, read: true }
-        : notification
-    )))
+  const handleReadNotificationMessage = async (notificationId) => {
+    try {
+      await markTicketNotificationAsRead(notificationId)
+      setAdminNotifications((prev) => prev.map((notification) => (
+        notification.id === notificationId
+          ? { ...notification, read: true }
+          : notification
+      )))
+    } catch {
+      setTicketNotificationError('Failed to mark notification as read.')
+    }
   }
 
   const handleResourceInputChange = (event) => {
@@ -614,12 +648,17 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="mt-4 space-y-3">
+                  {ticketNotificationError ? <p className="text-sm text-rose-700">{ticketNotificationError}</p> : null}
+                  {isTicketNotificationLoading ? <p className="text-sm text-slate-500">Loading notifications...</p> : null}
+                  {!isTicketNotificationLoading && adminNotifications.length === 0 ? (
+                    <p className="text-sm text-slate-500">No notifications yet.</p>
+                  ) : null}
                   {adminNotifications.map((notification) => (
                     <div key={notification.id} className={`rounded-xl border p-3 ${notification.read ? 'border-slate-200 bg-slate-50' : 'border-cyan-200 bg-cyan-50'}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className={`font-bold ${notification.read ? 'text-slate-900' : 'text-cyan-900'}`}>{notification.title}</p>
-                          <p className="mt-1 text-sm text-slate-600">{notification.detail}</p>
+                          <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
                           <button
                             type="button"
                             onClick={() => handleReadNotificationMessage(notification.id)}
@@ -629,7 +668,7 @@ const AdminDashboard = () => {
                             {notification.read ? 'Read' : 'Read message'}
                           </button>
                         </div>
-                        <span className="whitespace-nowrap text-xs font-semibold text-slate-400">{notification.time}</span>
+                        <span className="whitespace-nowrap text-xs font-semibold text-slate-400">{new Date(notification.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
@@ -1068,28 +1107,39 @@ const AdminDashboard = () => {
 
               {activeSection === 'Tickets' ? (
                 <div className="mt-5 space-y-4">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Ticket Management</p>
-                    <h3 className="mt-2 text-2xl font-black text-slate-950">Manage maintenance and incident requests</h3>
-                    <p className="mt-2 max-w-3xl text-sm text-slate-600">
-                      Review submitted tickets, assign support staff, update workflow status, and save resolution notes from the admin side.
+                  <div className="rounded-3xl border border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white shadow-lg">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Ticket Command Center</p>
+                    <h3 className="mt-3 text-3xl font-black">Manage maintenance and incident requests</h3>
+                    <p className="mt-3 max-w-3xl text-sm text-slate-200">
+                      Route incoming issues, update status workflows, and close requests with resolution notes from one focused admin workspace.
                     </p>
-                    <div className="mt-4 flex flex-wrap gap-3">
+                    <div className="mt-5">
                       <button
                         type="button"
                         onClick={() => navigate('/tickets/manage')}
-                        className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800"
+                        className="rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-900 hover:bg-slate-100"
                       >
                         Open Ticket Management
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/tickets/manage')}
-                        className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-bold text-cyan-800 hover:bg-cyan-100"
-                      >
-                        View Ticket Queue
-                      </button>
                     </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Intake</p>
+                      <h4 className="mt-2 text-lg font-black text-slate-900">Review new tickets</h4>
+                      <p className="mt-2 text-sm text-slate-600">See all submitted requests and prioritize work by urgency and impact.</p>
+                    </article>
+                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution</p>
+                      <h4 className="mt-2 text-lg font-black text-slate-900">Update workflows</h4>
+                      <p className="mt-2 text-sm text-slate-600">Move tickets through OPEN, IN PROGRESS, AWAITING FOR REPLY, and RESOLVED states.</p>
+                    </article>
+                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Closure</p>
+                      <h4 className="mt-2 text-lg font-black text-slate-900">Document resolution</h4>
+                      <p className="mt-2 text-sm text-slate-600">Capture final notes and requester replies to maintain an auditable service history.</p>
+                    </article>
                   </div>
                 </div>
               ) : null}

@@ -4,6 +4,7 @@ import com.edutrack.backend.ticket.dto.AddResolutionNoteRequest;
 import com.edutrack.backend.ticket.dto.AddRequesterReplyRequest;
 import com.edutrack.backend.ticket.dto.AssignTicketRequest;
 import com.edutrack.backend.ticket.dto.CreateTicketRequest;
+import com.edutrack.backend.ticket.dto.TicketNotificationResponse;
 import com.edutrack.backend.ticket.dto.TicketResponse;
 import com.edutrack.backend.ticket.dto.UpdateTicketAdminFollowUpRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketRequest;
@@ -62,6 +63,21 @@ public class TicketController {
             @RequestHeader("X-User-Email") String actorEmail,
             @RequestHeader("X-User-Role") String actorRole) {
         return ResponseEntity.ok(ticketService.getAllTickets(actorEmail, actorRole));
+    }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<List<TicketNotificationResponse>> getNotifications(
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.getNotifications(actorEmail, actorRole));
+    }
+
+    @PatchMapping("/notifications/{notificationId}/read")
+    public ResponseEntity<TicketNotificationResponse> markNotificationAsRead(
+            @PathVariable Long notificationId,
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.markNotificationAsRead(notificationId, actorEmail, actorRole));
     }
 
     @GetMapping("/{id}")

@@ -9,18 +9,21 @@ import com.edutrack.backend.ticket.dto.AddResolutionNoteRequest;
 import com.edutrack.backend.ticket.dto.AddRequesterReplyRequest;
 import com.edutrack.backend.ticket.dto.AssignTicketRequest;
 import com.edutrack.backend.ticket.dto.CreateTicketRequest;
+import com.edutrack.backend.ticket.dto.TicketNotificationResponse;
 import com.edutrack.backend.ticket.dto.TicketResponse;
 import com.edutrack.backend.ticket.dto.UpdateTicketAdminFollowUpRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketStatusRequest;
 import com.edutrack.backend.ticket.entity.Ticket;
 import com.edutrack.backend.ticket.entity.TicketAttachment;
+import com.edutrack.backend.ticket.entity.TicketNotification;
 import com.edutrack.backend.ticket.enums.TicketCategory;
 import com.edutrack.backend.ticket.enums.TicketPriority;
 import com.edutrack.backend.ticket.enums.TicketStatus;
 import com.edutrack.backend.ticket.exception.TicketException;
 import com.edutrack.backend.ticket.repository.TicketAttachmentRepository;
 import com.edutrack.backend.ticket.repository.TicketRepository;
+import com.edutrack.backend.ticket.repository.TicketNotificationRepository;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -44,6 +47,7 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final TicketAttachmentRepository ticketAttachmentRepository;
+    private final TicketNotificationRepository ticketNotificationRepository;
     private final UserAccountRepository userAccountRepository;
     private final ResourceRepository resourceRepository;
     private final Path uploadRoot;
@@ -51,11 +55,13 @@ public class TicketService {
     public TicketService(
             TicketRepository ticketRepository,
             TicketAttachmentRepository ticketAttachmentRepository,
+            TicketNotificationRepository ticketNotificationRepository,
             UserAccountRepository userAccountRepository,
             ResourceRepository resourceRepository,
             @Value("${app.ticket.upload-dir:uploads/tickets}") String uploadDir) {
         this.ticketRepository = ticketRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
+        this.ticketNotificationRepository = ticketNotificationRepository;
         this.userAccountRepository = userAccountRepository;
         this.resourceRepository = resourceRepository;
         this.uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
@@ -83,6 +89,7 @@ public class TicketService {
         ticket.setCreatedByRole(RoleNames.normalize(actorRole));
 
         Ticket saved = ticketRepository.save(ticket);
+        notifyAdminsOnTicketCreated(saved);
         return toResponse(saved, actorEmail, actorRole);
     }
 
@@ -104,6 +111,9 @@ public class TicketService {
                 request.preferredContactEmail(),
                 request.preferredContactPhone());
         Ticket saved = ticketRepository.save(ticket);
+        if (isStaffOrAdmin(actorRole)) {
+            notifyOwner(saved, "Ticket details updated", "Admin/staff updated your ticket details.", actorEmail);
+        }
         return toResponse(saved, actorEmail, actorRole);
     }
 
@@ -159,6 +169,7 @@ public class TicketService {
         ticket.setAssignedTechnicianRole(technician.getRole());
 
         Ticket saved = ticketRepository.save(ticket);
+        notifyOwner(saved, "Ticket assigned", "Admin assigned your ticket to " + technician.getFullName() + ".", actorEmail);
         return toResponse(saved, actorEmail, actorRole);
     }
 
@@ -182,6 +193,7 @@ public class TicketService {
         }
 
         Ticket saved = ticketRepository.save(ticket);
+        notifyOwner(saved, "Ticket status updated", "Admin/staff changed ticket status to " + nextStatus + ".", actorEmail);
         return toResponse(saved, actorEmail, actorRole);
     }
 
@@ -195,7 +207,19 @@ public class TicketService {
         }
 
         ticket.setResolutionNotes(request.resolutionNotes().trim());
+        if (ticket.getStatus() == TicketStatus.AWAITING_FOR_REPLY) {
+            // Start a fresh requester reply cycle for each new admin note.
+            ticket.setRequesterReply(null);
+            ticket.setRequesterActionRequired(true);
+        }
         Ticket saved = ticketRepository.save(ticket);
+
+        if (saved.getStatus() == TicketStatus.AWAITING_FOR_REPLY) {
+            notifyOwner(saved, "Action required on your ticket", "Admin requested a response: " + saved.getResolutionNotes(), actorEmail);
+        } else {
+            notifyOwner(saved, "Resolution notes updated", "Admin updated resolution notes on your ticket.", actorEmail);
+        }
+
         return toResponse(saved, actorEmail, actorRole);
     }
 
@@ -213,7 +237,35 @@ public class TicketService {
         ticket.setRequesterActionRequired(false);
 
         Ticket saved = ticketRepository.save(ticket);
+        notifyAdminsOnRequesterReply(saved, actorEmail);
         return toResponse(saved, actorEmail, actorRole);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketNotificationResponse> getNotifications(String actorEmail, String actorRole) {
+        if (actorEmail == null || actorEmail.isBlank()) {
+            throw new TicketException(HttpStatus.BAD_REQUEST, "Actor email is required");
+        }
+
+        return ticketNotificationRepository.findByRecipientEmailIgnoreCaseOrderByCreatedAtDesc(normalizeEmail(actorEmail))
+                .stream()
+                .map(TicketNotificationResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public TicketNotificationResponse markNotificationAsRead(Long notificationId, String actorEmail, String actorRole) {
+        TicketNotification notification = ticketNotificationRepository.findById(notificationId)
+                .orElseThrow(() -> new TicketException(HttpStatus.NOT_FOUND, "Notification not found"));
+
+        String normalizedEmail = normalizeEmail(actorEmail);
+        if (!normalizedEmail.equalsIgnoreCase(notification.getRecipientEmail())) {
+            throw new TicketException(HttpStatus.FORBIDDEN, "You do not have access to this notification");
+        }
+
+        notification.setRead(true);
+        TicketNotification saved = ticketNotificationRepository.save(notification);
+        return TicketNotificationResponse.from(saved);
     }
 
     @Transactional
@@ -229,6 +281,13 @@ public class TicketService {
         ticket.setRelatedDetails(trimToNull(request.relatedDetails()));
 
         Ticket saved = ticketRepository.save(ticket);
+
+        if (saved.isRequesterActionRequired() && saved.getAdminMessage() != null && !saved.getAdminMessage().isBlank()) {
+            notifyOwner(saved, "Action required on your ticket", "Admin requested: " + saved.getAdminMessage(), actorEmail);
+        } else {
+            notifyOwner(saved, "Ticket follow-up updated", "Admin/staff updated ticket follow-up details.", actorEmail);
+        }
+
         return toResponse(saved, actorEmail, actorRole);
     }
 
@@ -473,6 +532,57 @@ public class TicketService {
 
     private String sanitizeFileName(String originalFileName) {
         return originalFileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private void notifyAdminsOnTicketCreated(Ticket ticket) {
+        List<UserAccount> admins = userAccountRepository.findByRoleIgnoreCase(RoleNames.ADMIN);
+        for (UserAccount admin : admins) {
+            createNotification(
+                    ticket.getId(),
+                    admin.getEmail(),
+                    "New ticket raised",
+                    "Ticket #" + ticket.getId() + " was raised by " + ticket.getCreatedByName() + ".");
+        }
+    }
+
+    private void notifyAdminsOnRequesterReply(Ticket ticket, String actorEmail) {
+        List<UserAccount> admins = userAccountRepository.findByRoleIgnoreCase(RoleNames.ADMIN);
+        for (UserAccount admin : admins) {
+            if (admin.getEmail() != null && actorEmail != null && admin.getEmail().equalsIgnoreCase(actorEmail)) {
+                continue;
+            }
+            createNotification(
+                    ticket.getId(),
+                    admin.getEmail(),
+                    "Requester replied",
+                    "Ticket #" + ticket.getId() + " has a new requester reply.");
+        }
+    }
+
+    private void notifyOwner(Ticket ticket, String title, String detail, String actorEmail) {
+        if (ticket.getCreatedByEmail() == null || ticket.getCreatedByEmail().isBlank()) {
+            return;
+        }
+
+        if (actorEmail != null && actorEmail.equalsIgnoreCase(ticket.getCreatedByEmail())) {
+            return;
+        }
+
+        createNotification(ticket.getId(), ticket.getCreatedByEmail(), title, detail);
+    }
+
+    private void createNotification(Long ticketId, String recipientEmail, String title, String detail) {
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            return;
+        }
+
+        TicketNotification notification = new TicketNotification();
+        notification.setTicketId(ticketId);
+        notification.setRecipientEmail(normalizeEmail(recipientEmail));
+        notification.setTitle(title);
+        notification.setMessage(detail);
+        notification.setRead(false);
+        ticketNotificationRepository.save(notification);
     }
 
     private String trimToNull(String value) {

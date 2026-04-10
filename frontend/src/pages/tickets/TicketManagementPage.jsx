@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getAllTickets, getTicketAttachmentUrl, updateTicketStatus, addResolutionNotes } from '../../api/ticketApi.js'
 import TicketStatusBadge from '../../components/tickets/TicketStatusBadge.jsx'
 
@@ -21,6 +22,7 @@ const parseDescriptionMetadata = (description) => {
 
   return {
     requestType: map['request / inquiry type'] || '',
+    registrationNumber: map['registration number'] || '-',
   }
 }
 
@@ -62,6 +64,8 @@ const TicketManagementPage = () => {
   const [rejectionReason, setRejectionReason] = useState('')
   const [resolutionNotesDraft, setResolutionNotesDraft] = useState('')
   const [isResolutionEditing, setIsResolutionEditing] = useState(false)
+  const [followUpResolutionNotesDraft, setFollowUpResolutionNotesDraft] = useState('')
+  const [isFollowUpResolutionEditing, setIsFollowUpResolutionEditing] = useState(false)
   const [message, setMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -92,6 +96,7 @@ const TicketManagementPage = () => {
   const isAwaitingReply = status === 'AWAITING_FOR_REPLY'
   const isReplySubmitted = Boolean(selectedTicket?.requesterReply?.trim())
   const isResolutionLocked = isReplySubmitted
+  const shouldShowFollowUpResolutionSection = selectedTicket?.status === 'AWAITING_FOR_REPLY' && isReplySubmitted
 
   useEffect(() => {
     if (!selectedTicket) {
@@ -102,6 +107,8 @@ const TicketManagementPage = () => {
     setRejectionReason(selectedTicket.rejectionReason || '')
     setResolutionNotesDraft(selectedTicket.resolutionNotes || '')
     setIsResolutionEditing(false)
+    setFollowUpResolutionNotesDraft('')
+    setIsFollowUpResolutionEditing(false)
   }, [selectedTicket])
 
   const handleStatusUpdate = async () => {
@@ -166,38 +173,94 @@ const TicketManagementPage = () => {
     setMessage('Changes discarded.')
   }
 
+  const handleSaveFollowUpResolutionNotes = async () => {
+    const nextFollowUp = followUpResolutionNotesDraft.trim()
+    if (!nextFollowUp) {
+      setMessage('Follow-up resolution notes are required.')
+      return
+    }
+
+    try {
+      await addResolutionNotes(selectedTicketId, nextFollowUp)
+      setMessage('Follow-up resolution notes saved.')
+      setIsFollowUpResolutionEditing(false)
+      setFollowUpResolutionNotesDraft('')
+      await refreshTicketList()
+    } catch (notesError) {
+      setMessage(notesError.message || 'Unable to save follow-up notes.')
+    }
+  }
+
+  const handleStartFollowUpResolutionEdit = () => {
+    setFollowUpResolutionNotesDraft('')
+    setIsFollowUpResolutionEditing(true)
+    setMessage('')
+  }
+
+  const handleCancelFollowUpResolutionEdit = () => {
+    setFollowUpResolutionNotesDraft('')
+    setIsFollowUpResolutionEditing(false)
+    setMessage('Changes discarded.')
+  }
+
   if (isLoading) {
-    return <div className="min-h-screen bg-slate-100 p-8 text-center">Loading management console...</div>
+    return <div className="min-h-screen bg-[#f5efe8] p-8 text-center">Loading management console...</div>
   }
 
   if (error) {
-    return <div className="min-h-screen bg-slate-100 p-8 text-center text-rose-600">{error}</div>
+    return <div className="min-h-screen bg-[#f5efe8] p-8 text-center text-rose-600">{error}</div>
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="min-h-screen bg-[#f5efe8] px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <nav className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-300/40">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/admin/dashboard?section=Tickets"
+              className="rounded-2xl border border-[#153f62] bg-[#153f62] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1b537f]"
+            >
+              Admin Dashboard
+            </Link>
+            <Link
+              to="/tickets/manage"
+              className="rounded-2xl border border-[#153f62] bg-[#153f62] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1b537f]"
+            >
+              Manage
+            </Link>
+          </div>
+          <p className="text-sm font-semibold text-slate-600">Ticket Management</p>
+        </nav>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+        <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-300/40">
           <h1 className="text-2xl font-black text-slate-950">Ticket management</h1>
           <p className="mt-2 text-sm text-slate-600">Update workflow state and log resolution notes.</p>
 
           <div className="mt-6 space-y-3">
             {tickets.map((ticket) => (
-              <button key={ticket.id} onClick={() => setSelectedTicketId(ticket.id)} className={`w-full rounded-2xl border px-4 py-4 text-left transition ${selectedTicketId === ticket.id ? 'border-cyan-500 bg-cyan-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+              <button key={ticket.id} onClick={() => setSelectedTicketId(ticket.id)} className={`w-full rounded-2xl border px-4 py-4 text-left transition ${selectedTicketId === ticket.id ? 'border-[#9fc9e3] bg-[#eaf5fc]' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                {(() => {
+                  const metadata = parseDescriptionMetadata(ticket.description)
+                  return (
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <TicketStatusBadge status={ticket.status} />
                     <p className="mt-2 font-bold text-slate-950">#{ticket.id} {getRequestTitle(ticket)}</p>
                     <p className="text-sm text-slate-600">{ticket.resourceName || ticket.location}</p>
+                    <p className="mt-1 text-xs text-slate-500">Reg No: {metadata.registrationNumber}</p>
+                    <p className="text-xs text-slate-500">Email: {ticket.preferredContactEmail || '-'}</p>
                   </div>
                   <span className="text-xs text-slate-400">{ticket.priority}</span>
                 </div>
+                  )
+                })()}
               </button>
             ))}
           </div>
         </section>
 
-        <section className="space-y-6 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="space-y-6 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-300/40">
           {selectedTicket ? (
             <>
               <div className="flex items-start justify-between gap-4">
@@ -205,6 +268,8 @@ const TicketManagementPage = () => {
                   <TicketStatusBadge status={selectedTicket.status} />
                   <h2 className="mt-3 text-2xl font-black text-slate-950">Ticket #{selectedTicket.id}</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-700">Request / Inquiry type: {getRequestTitle(selectedTicket)}</p>
+                  <p className="mt-1 text-sm text-slate-600">Registration Number: {parseDescriptionMetadata(selectedTicket.description).registrationNumber}</p>
+                  <p className="text-sm text-slate-600">Email: {selectedTicket.preferredContactEmail || '-'}</p>
                   <p className="mt-1 text-sm text-slate-600">{selectedTicket.description}</p>
                 </div>
                 <div className="text-right text-sm text-slate-500">Assigned: {selectedTicket.assignedTechnicianName || 'Unassigned'}</div>
@@ -223,7 +288,7 @@ const TicketManagementPage = () => {
                     <input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3" />
                   </label>
                 ) : null}
-                <button onClick={handleStatusUpdate} className="rounded-2xl bg-cyan-600 px-4 py-3 text-sm font-bold text-white">Save status</button>
+                <button onClick={handleStatusUpdate} className="rounded-2xl bg-[#0b1739] px-4 py-3 text-sm font-bold text-white hover:bg-[#14224a]">Save status</button>
               </div>
 
               <div>
@@ -241,7 +306,7 @@ const TicketManagementPage = () => {
 
                 {isResolutionLocked ? (
                   <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-                    Requester has already sent a reply. Resolution notes cannot be edited.
+                    Requester has already sent a reply. Add follow-up resolution notes in the section below.
                   </div>
                 ) : isResolutionEditing ? (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -249,14 +314,14 @@ const TicketManagementPage = () => {
                     <button onClick={handleCancelResolutionEdit} className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700">Cancel</button>
                   </div>
                 ) : (
-                  <button onClick={handleEditResolutionNotes} className="mt-3 rounded-2xl border border-cyan-300 bg-cyan-50 px-4 py-3 text-sm font-bold text-cyan-900">Edit</button>
+                  <button onClick={handleEditResolutionNotes} className="mt-3 rounded-2xl border border-[#b7d8ea] bg-[#eaf5fc] px-4 py-3 text-sm font-bold text-[#1f4968] hover:bg-[#dceef9]">Edit</button>
                 )}
               </div>
 
               {selectedTicket.requesterReply ? (
-                <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4">
-                  <h3 className="text-sm font-black uppercase tracking-[0.16em] text-cyan-800">Requester reply</h3>
-                  <p className="mt-2 whitespace-pre-line text-sm text-cyan-950">{selectedTicket.requesterReply}</p>
+                <div className="rounded-2xl border border-[#b7d8ea] bg-[#eaf5fc] p-4">
+                  <h3 className="text-sm font-black uppercase tracking-[0.16em] text-[#1f4968]">Requester reply</h3>
+                  <p className="mt-2 whitespace-pre-line text-sm text-[#153753]">{selectedTicket.requesterReply}</p>
                 </div>
               ) : null}
 
@@ -278,12 +343,38 @@ const TicketManagementPage = () => {
                 </div>
               ) : null}
 
-              {message ? <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">{message}</div> : null}
+              {shouldShowFollowUpResolutionSection ? (
+                <div className="rounded-2xl border border-[#b7d8ea] bg-[#eaf5fc] p-4">
+                  <h3 className="text-sm font-black uppercase tracking-[0.16em] text-[#1f4968]">Follow-up Resolution Notes</h3>
+                  <p className="mt-2 text-sm text-[#153753]">Add a new resolution update after reviewing the requester reply and attachments.</p>
+
+                  {isFollowUpResolutionEditing ? (
+                    <>
+                      <textarea
+                        value={followUpResolutionNotesDraft}
+                        onChange={(event) => setFollowUpResolutionNotesDraft(event.target.value)}
+                        rows="5"
+                        className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"
+                        placeholder="Write the next resolution update for this ticket."
+                      />
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button onClick={handleSaveFollowUpResolutionNotes} className="rounded-2xl border border-slate-950 px-4 py-3 text-sm font-bold text-slate-950">Send</button>
+                        <button onClick={handleCancelFollowUpResolutionEdit} className="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700">Cancel</button>
+                      </div>
+                    </>
+                  ) : (
+                    <button onClick={handleStartFollowUpResolutionEdit} className="mt-3 rounded-2xl border border-[#b7d8ea] bg-white px-4 py-3 text-sm font-bold text-[#1f4968] hover:bg-[#f3f9fd]">Add follow-up notes</button>
+                  )}
+                </div>
+              ) : null}
+
+              {message ? <div className="rounded-2xl border border-[#b7d8ea] bg-[#eaf5fc] px-4 py-3 text-sm text-[#1f4968]">{message}</div> : null}
             </>
           ) : (
             <div className="rounded-3xl border border-dashed border-slate-300 p-10 text-center text-slate-500">Select a ticket to manage it.</div>
           )}
         </section>
+        </div>
       </div>
     </div>
   )
