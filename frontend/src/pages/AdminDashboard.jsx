@@ -13,6 +13,12 @@ const notificationCategoryLabels = {
   SECURITY_NOTICES: 'Security Notices',
 }
 
+const initialAdminNotifications = [
+  { id: 1, title: 'New booking request', detail: 'Computer Lab B needs approval.', time: '5 min ago', read: false },
+  { id: 2, title: 'Maintenance alert', detail: 'Projector fault reported in Hall A3.', time: '20 min ago', read: false },
+  { id: 3, title: 'System announcement', detail: 'Semester schedule update published.', time: '1 hour ago', read: true },
+]
+
 
 // Admin Dashboard
 
@@ -45,6 +51,10 @@ const AdminDashboard = () => {
   const [notificationStatus, setNotificationStatus] = useState('')
   const [isNotificationLoading, setIsNotificationLoading] = useState(false)
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
+  const [adminNotifications, setAdminNotifications] = useState(initialAdminNotifications)
+
+  const unreadNotificationCount = adminNotifications.filter((notification) => !notification.read).length
 
   const fetchUsers = async () => {
     setIsUsersLoading(true)
@@ -319,6 +329,18 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleMarkAllNotificationsRead = () => {
+    setAdminNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
+  }
+
+  const handleReadNotificationMessage = (notificationId) => {
+    setAdminNotifications((prev) => prev.map((notification) => (
+      notification.id === notificationId
+        ? { ...notification, read: true }
+        : notification
+    )))
+  }
+
   return (
     <div className="min-h-screen bg-[#f5efe8] p-3 sm:p-5">
       <div className="mx-auto max-w-7xl rounded-[2rem] border border-slate-200 bg-slate-50 p-5 shadow-xl sm:p-7">
@@ -330,11 +352,73 @@ const AdminDashboard = () => {
               <h1 className="text-2xl font-black text-slate-900">Campus Operations Dashboard</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsNotificationPanelOpen((prev) => !prev)}
+              className="relative rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              aria-label="View notifications"
+            >
+              <span className="text-base leading-none">🔔</span>
+              {unreadNotificationCount > 0 ? (
+                <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white">
+                  {unreadNotificationCount}
+                </span>
+              ) : null}
+            </button>
             <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700">ADMIN</span>
             <button onClick={handleLogout} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
               Logout
             </button>
+
+            {isNotificationPanelOpen ? (
+              <div className="absolute right-0 top-12 z-20 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Notifications</p>
+                    <h3 className="text-lg font-black text-slate-900">Recent updates</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleMarkAllNotificationsRead}
+                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      Mark all read
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsNotificationPanelOpen(false)}
+                      className="rounded-lg border border-slate-200 px-2 py-1 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {adminNotifications.map((notification) => (
+                    <div key={notification.id} className={`rounded-xl border p-3 ${notification.read ? 'border-slate-200 bg-slate-50' : 'border-cyan-200 bg-cyan-50'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className={`font-bold ${notification.read ? 'text-slate-900' : 'text-cyan-900'}`}>{notification.title}</p>
+                          <p className="mt-1 text-sm text-slate-600">{notification.detail}</p>
+                          <button
+                            type="button"
+                            onClick={() => handleReadNotificationMessage(notification.id)}
+                            disabled={notification.read}
+                            className="mt-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {notification.read ? 'Read' : 'Read message'}
+                          </button>
+                        </div>
+                        <span className="whitespace-nowrap text-xs font-semibold text-slate-400">{notification.time}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </header>
 
@@ -495,6 +579,75 @@ const AdminDashboard = () => {
                       </div>
                     </form>
                   ) : null}
+
+                  <section className="rounded-2xl border border-slate-200 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900">Create User Account</h2>
+                        <p className="text-sm text-slate-500">Admin can create ADMIN, MANAGER, TECHNICIAN, USER, and STUDENT accounts.</p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">STUDENT uses IT number, TECHNICIAN gets ITTECH###</span>
+                    </div>
+
+                    <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreateAccount}>
+                      <input
+                        name="fullName"
+                        value={formData.fullName}
+                        onChange={handleChange}
+                        placeholder={isStudentCreate ? 'Optional for student' : 'Full name'}
+                        className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
+                        required={!isStudentCreate}
+                      />
+                      <input
+                        name="itNumber"
+                        value={formData.itNumber}
+                        onChange={handleChange}
+                        placeholder={isStudentCreate ? 'IT23608054' : 'Optional for technician (auto ITTECH001)'}
+                        maxLength={10}
+                        className="rounded-xl border border-slate-200 px-4 py-3 uppercase outline-none focus:ring-4 focus:ring-violet-100"
+                        required={isStudentCreate}
+                      />
+                      <input
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder={isStudentCreate ? 'Optional for student' : 'staff@smartcampus.com'}
+                        className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
+                        required={!isStudentCreate}
+                      />
+                      <input
+                        name="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        placeholder={isStudentCreate ? 'Optional for student (auto if empty)' : 'Temporary password'}
+                        className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
+                        required={!isStudentCreate}
+                      />
+                      <select
+                        name="role"
+                        value={formData.role}
+                        onChange={handleChange}
+                        className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
+                      >
+                        <option value="TECHNICIAN">TECHNICIAN</option>
+                        <option value="MANAGER">MANAGER</option>
+                        <option value="ADMIN">ADMIN</option>
+                        <option value="USER">USER</option>
+                        <option value="STUDENT">STUDENT</option>
+                      </select>
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60"
+                      >
+                        {isSubmitting ? 'Creating...' : 'Create Account'}
+                      </button>
+                    </form>
+
+                    {statusMessage ? <p className="mt-3 text-sm text-slate-600">{statusMessage}</p> : null}
+                  </section>
                 </div>
               ) : null}
 
@@ -536,74 +689,6 @@ const AdminDashboard = () => {
               ) : null}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-black text-slate-900">Create User Account</h2>
-                  <p className="text-sm text-slate-500">Admin can create ADMIN, MANAGER, TECHNICIAN, USER, and STUDENT accounts.</p>
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">STUDENT uses IT number, TECHNICIAN gets ITTECH###</span>
-              </div>
-
-              <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreateAccount}>
-            <input
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder={isStudentCreate ? 'Optional for student' : 'Full name'}
-              className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
-              required={!isStudentCreate}
-            />
-            <input
-              name="itNumber"
-              value={formData.itNumber}
-              onChange={handleChange}
-              placeholder={isStudentCreate ? 'IT23608054' : 'Optional for technician (auto ITTECH001)'}
-              maxLength={10}
-              className="rounded-xl border border-slate-200 px-4 py-3 uppercase outline-none focus:ring-4 focus:ring-violet-100"
-              required={isStudentCreate}
-            />
-            <input
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder={isStudentCreate ? 'Optional for student' : 'staff@smartcampus.com'}
-              className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
-              required={!isStudentCreate}
-            />
-            <input
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder={isStudentCreate ? 'Optional for student (auto if empty)' : 'Temporary password'}
-              className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
-              required={!isStudentCreate}
-            />
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
-            >
-              <option value="TECHNICIAN">TECHNICIAN</option>
-              <option value="MANAGER">MANAGER</option>
-              <option value="ADMIN">ADMIN</option>
-              <option value="USER">USER</option>
-              <option value="STUDENT">STUDENT</option>
-            </select>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60"
-            >
-              {isSubmitting ? 'Creating...' : 'Create Account'}
-            </button>
-              </form>
-
-              {statusMessage ? <p className="mt-3 text-sm text-slate-600">{statusMessage}</p> : null}
-            </section>
           </div>
         </section>
       </div>
