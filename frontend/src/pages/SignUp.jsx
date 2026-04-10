@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import logo from '../assets/edutrack.png'
+import { resolveApiBase } from '../utils/apiUrl.js'
 
-const DEFAULT_API_BASE = `${window.location.protocol}//${window.location.hostname}:8081`
-const API_BASE = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE
+const API_BASE = resolveApiBase()
 
 const initialForm = {
   name: '',
@@ -375,7 +375,7 @@ const SignUp = () => {
       <div className="relative hidden w-1/2 items-center justify-center overflow-hidden rounded-l-[3rem] bg-blue-900 shadow-2xl lg:flex">
         <div className="absolute right-0 top-0 h-full w-full opacity-20">
           <div className="absolute right-[-10%] top-[-10%] h-[60%] w-[120%] rounded-full bg-blue-800 blur-3xl"></div>
-          <div className="absolute bottom-[-10%] left-[-20%] h-[70%] w-[100%] rounded-full bg-orange-600 blur-3xl"></div>
+          <div className="absolute bottom-[-10%] left-[-20%] h-[70%] w-full rounded-full bg-orange-600 blur-3xl"></div>
         </div>
 
         <div className="relative z-10 flex w-full max-w-lg flex-col gap-8 px-8">

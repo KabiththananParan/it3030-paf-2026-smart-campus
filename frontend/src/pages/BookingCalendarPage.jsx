@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { checkInBooking, getCalendarBookings } from '../api/bookingApi.js'
-import { resolvePublicAppBase } from '../utils/publicAppUrl.js'
+import { buildQrScanUrl } from '../utils/publicAppUrl.js'
 
 const BookingCalendarPage = () => {
   const savedUser = localStorage.getItem('auth_user')
@@ -12,8 +12,7 @@ const BookingCalendarPage = () => {
   const isAdmin = (user?.role || '').toUpperCase() === 'ADMIN'
 
   const buildQrImageUrl = (token) => {
-    const publicAppBase = resolvePublicAppBase()
-    const scanUrl = `${publicAppBase}/bookings/scan/${encodeURIComponent(token)}`
+    const scanUrl = buildQrScanUrl(token)
     return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(scanUrl)}`
   }
 

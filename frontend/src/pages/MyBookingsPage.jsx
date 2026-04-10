@@ -8,7 +8,7 @@ import {
   getMyUpcomingBookings,
   updateBooking,
 } from '../api/bookingApi.js'
-import { resolvePublicAppBase } from '../utils/publicAppUrl.js'
+import { buildQrScanUrl } from '../utils/publicAppUrl.js'
 
 const editableStatuses = ['PENDING']
 
@@ -20,8 +20,7 @@ const statusBadge = {
 }
 
 const buildQrImageUrl = (token) => {
-  const publicAppBase = resolvePublicAppBase()
-  const scanUrl = `${publicAppBase}/bookings/scan/${encodeURIComponent(token)}`
+  const scanUrl = buildQrScanUrl(token)
   return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(scanUrl)}`
 }
 

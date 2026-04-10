@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import logo from '../assets/edutrack.png'
+import { resolveApiBase } from '../utils/apiUrl.js'
 
-const DEFAULT_API_BASE = `${window.location.protocol}//${window.location.hostname}:8081`
-const API_BASE = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE
+const API_BASE = resolveApiBase()
 
 const Login = () => {
   const navigate = useNavigate()
@@ -83,7 +83,7 @@ const Login = () => {
       <div className="flex flex-1 overflow-hidden">
       <div className="relative hidden w-1/2 overflow-hidden bg-orange-100 lg:flex">
         <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-orange-300/60 blur-3xl"></div>
-        <div className="absolute -bottom-24 right-0 h-[28rem] w-[28rem] rounded-full bg-blue-300/50 blur-3xl"></div>
+        <div className="absolute -bottom-24 right-0 h-112 w-md rounded-full bg-blue-300/50 blur-3xl"></div>
 
         <div className="relative z-10 m-10 flex w-full flex-col justify-between rounded-[2.5rem] border border-white/40 bg-white/45 p-10 backdrop-blur-sm">
           <div>
