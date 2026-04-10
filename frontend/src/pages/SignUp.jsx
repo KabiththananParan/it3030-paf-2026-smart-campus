@@ -166,8 +166,8 @@ const SignUp = () => {
 
         setSubmitMessage(response.message || 'A verification code has been sent to your email.')
         setVerificationStep('verify')
-      } catch {
-        setSubmitMessage('Cannot connect to server. Please start backend and try again.')
+      } catch (requestError) {
+        setSubmitMessage(requestError.message || 'Cannot connect to server. Please start backend and try again.')
       } finally {
         setIsSubmitting(false)
       }
@@ -228,8 +228,8 @@ const SignUp = () => {
       setVerificationCode('')
       setSubmitMessage(response.message || 'A new verification code has been sent to your email.')
       setVerificationStep('verify')
-    } catch {
-      setSubmitMessage('Cannot connect to server. Please start backend and try again.')
+    } catch (requestError) {
+      setSubmitMessage(requestError.message || 'Cannot connect to server. Please start backend and try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -336,8 +336,6 @@ const SignUp = () => {
                 value={formData.email}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-                title="Use a valid email address"
               />
               {isFieldValid('email') ? (
                 <svg className="ml-2 h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -150,14 +150,14 @@ public class AuthService {
 
         boolean accountExists = userAccountRepository.existsByEmailIgnoreCase(normalizedEmail);
         if (!accountExists) {
-            return AuthResponse.messageOnly("If the email exists, a password reset link has been sent.");
+            return AuthResponse.messageOnly("If the email exists, a 4-digit verification code has been sent.");
         }
 
         String otpCode = generateOtpCode();
         passwordResetOtps.put(normalizedEmail, new PasswordResetOtpEntry(otpCode, LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES)));
         sendEmail(normalizedEmail, "EduTrack password reset code", buildPasswordResetOtpBody(otpCode));
 
-        return AuthResponse.messageOnly("If the email exists, a password reset link has been sent.");
+        return AuthResponse.messageOnly("If the email exists, a 4-digit verification code has been sent.");
     }
 
     @Transactional
