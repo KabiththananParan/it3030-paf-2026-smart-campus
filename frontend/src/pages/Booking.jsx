@@ -1,10 +1,12 @@
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
+import { API_BASE_URL } from '../config.js'
 
-const API_BASE_URL = 'http://localhost:8080'
+const BOOKINGS_API_URL = `${API_BASE_URL}/api/bookings`
+const RESOURCES_API_URL = `${API_BASE_URL}/api/resources`
 
-const resources = [
+const fallbackResources = [
   { id: 101, name: 'Innovation Lab A', type: 'Computer Lab', capacity: 40, zone: 'Engineering Block', accent: 'bg-[linear-gradient(145deg,#0f766e_0%,#0891b2_58%,#0f172a_100%)]' },
   { id: 102, name: 'Seminar Hall C1', type: 'Lecture Hall', capacity: 120, zone: 'Main Auditorium Wing', accent: 'bg-[linear-gradient(145deg,#b45309_0%,#f97316_58%,#7c2d12_100%)]' },
   { id: 103, name: 'Studio Room S2', type: 'Media Studio', capacity: 18, zone: 'Digital Media Center', accent: 'bg-[linear-gradient(145deg,#334155_0%,#475569_52%,#0f172a_100%)]' },
@@ -49,7 +51,7 @@ const demoBookings = [
 ]
 
 const initialForm = {
-  resourceId: String(resources[0].id),
+  resourceId: String(fallbackResources[0].id),
   bookingDate: '',
   startTime: '09:00',
   endTime: '11:00',
@@ -86,16 +88,21 @@ const formatDateTime = (value) =>
   })
 
 const getResourceById = (resourceId) =>
-  resources.find((resource) => resource.id === Number(resourceId)) || resources[0]
+  fallbackResources.find((resource) => resource.id === Number(resourceId)) || fallbackResources[0]
 
 const Booking = () => {
   const navigate = useNavigate()
-  const { userId: routeUserId } = useParams()
+  const preselectedResourceId = new URLSearchParams(window.location.search).get('resourceId')
   const savedUser = localStorage.getItem('auth_user')
-  const [formData, setFormData] = useState(initialForm)
+  const [formData, setFormData] = useState(() => ({
+    ...initialForm,
+    resourceId: preselectedResourceId || initialForm.resourceId,
+  }))
   const [formMessage, setFormMessage] = useState('')
   const [formError, setFormError] = useState('')
+  const [timeSuggestions, setTimeSuggestions] = useState([])
   const [bookings, setBookings] = useState([])
+  const [resources, setResources] = useState(fallbackResources)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loadingMode, setLoadingMode] = useState('preview')
@@ -106,13 +113,10 @@ const Booking = () => {
 
   const user = JSON.parse(savedUser)
   const userId = user.id || user.userId || null
-  const normalizedRouteUserId = routeUserId ? Number(routeUserId) : null
+  const userEmail = user.email || ''
+  const userFullName = user.fullName || 'Student User'
   const userItNumber = user.itNumber || user.itNo || localStorage.getItem('auth_it_number') || 'IT Number'
-  const selectedResource = getResourceById(formData.resourceId)
-
-  if (userId && (!normalizedRouteUserId || normalizedRouteUserId !== Number(userId))) {
-    return <Navigate to={`/bookings/${userId}`} replace />
-  }
+  const selectedResource = resources.find((resource) => resource.id === Number(formData.resourceId)) || resources[0]
 
   const pendingCount = bookings.filter((booking) => booking.status === 'PENDING').length
   const approvedCount = bookings.filter((booking) => booking.status === 'APPROVED').length
@@ -123,13 +127,51 @@ const Booking = () => {
   const resetMessages = () => {
     setFormMessage('')
     setFormError('')
+    setTimeSuggestions([])
   }
 
   useEffect(() => {
     let ignore = false
 
+    const loadResources = async () => {
+      try {
+        const response = await fetch(`${RESOURCES_API_URL}/all`)
+        if (!response.ok) {
+          return
+        }
+
+        const data = await response.json()
+        if (!ignore && Array.isArray(data) && data.length > 0) {
+          const mappedResources = data.map((item, index) => ({
+            id: Number(item.id),
+            name: item.name,
+            type: item.type || 'Resource',
+            capacity: Number(item.capacity || 1),
+            zone: item.location || 'Campus',
+            accent: fallbackResources[index % fallbackResources.length].accent,
+          }))
+          setResources(mappedResources)
+          setFormData((current) => {
+            const preferredId = preselectedResourceId ? Number(preselectedResourceId) : Number(current.resourceId)
+            const preferredExists = mappedResources.some((resource) => resource.id === preferredId)
+
+            if (preferredExists) {
+              return { ...current, resourceId: String(preferredId) }
+            }
+
+            const selectedExists = mappedResources.some((resource) => resource.id === Number(current.resourceId))
+            return selectedExists
+              ? current
+              : { ...current, resourceId: String(mappedResources[0].id) }
+          })
+        }
+      } catch {
+        // Keep fallback resources if backend resources are unavailable.
+      }
+    }
+
     const loadBookings = async () => {
-      if (!userId) {
+      if (!userId || !userEmail) {
         setBookings(demoBookings)
         setLoadingMode('preview')
         setIsLoading(false)
@@ -137,14 +179,22 @@ const Booking = () => {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/bookings/my?userId=${normalizedRouteUserId}`)
+        const response = await fetch(`${BOOKINGS_API_URL}/my?email=${encodeURIComponent(userEmail)}`)
         if (!response.ok) {
           throw new Error('Booking data is not available yet.')
         }
 
         const data = await response.json()
         if (!ignore) {
-          setBookings(data)
+          const mappedBookings = Array.isArray(data)
+            ? data.map((booking) => ({
+                ...booking,
+                resourceId:
+                  resources.find((resource) => resource.name === booking.resourceName)?.id || resources[0]?.id,
+                expectedAttendees: booking.expectedAttendees || booking.capacity || 0,
+              }))
+            : []
+          setBookings(mappedBookings)
           setLoadingMode('live')
         }
       } catch {
@@ -160,12 +210,13 @@ const Booking = () => {
       }
     }
 
+    loadResources()
     loadBookings()
 
     return () => {
       ignore = true
     }
-  }, [normalizedRouteUserId, userId])
+  }, [userId, userEmail])
 
   const handleLogout = () => {
     localStorage.removeItem('auth_user')
@@ -202,12 +253,16 @@ const Booking = () => {
   }
 
   const buildPayload = () => ({
-    resourceId: Number(formData.resourceId),
+    requesterName: userFullName,
+    requesterEmail: userEmail,
+    requesterItNumber: userItNumber,
+    resourceType: selectedResource.type,
+    resourceName: selectedResource.name,
     bookingDate: formData.bookingDate,
     startTime: formData.startTime,
     endTime: formData.endTime,
     purpose: formData.purpose.trim(),
-    expectedAttendees: Number(formData.expectedAttendees),
+    recurrenceCount: 1,
   })
 
   const prependBooking = (booking) => {
@@ -227,14 +282,16 @@ const Booking = () => {
     const payload = buildPayload()
     setIsSubmitting(true)
 
-    if (!userId || loadingMode === 'preview') {
+    const hasLiveIdentity = Boolean(userEmail) && Boolean(userItNumber) && userItNumber !== 'IT Number'
+
+    if (!hasLiveIdentity) {
       prependBooking({
         id: Date.now(),
         ...payload,
         status: 'PENDING',
         createdAt: new Date().toISOString(),
       })
-      setFormMessage('Booking request added to preview mode. Connect the backend user flow to submit live requests.')
+      setFormMessage('Booking request added to preview mode. Add email and IT number to your account to submit live requests.')
       setFormData({
         ...initialForm,
         bookingDate: formData.bookingDate,
@@ -244,7 +301,7 @@ const Booking = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings?userId=${normalizedRouteUserId}`, {
+      const response = await fetch(BOOKINGS_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -256,10 +313,19 @@ const Booking = () => {
       if (!response.ok) {
         const message = typeof data.message === 'string' ? data.message : 'Unable to create booking.'
         setFormError(message)
+        setTimeSuggestions(Array.isArray(data.suggestions) ? data.suggestions : [])
         return
       }
 
-      prependBooking(data)
+      const createdBooking = data?.bookings?.[0]
+      if (createdBooking) {
+        prependBooking({
+          ...createdBooking,
+          resourceId: selectedResource.id,
+          expectedAttendees: Number(formData.expectedAttendees),
+        })
+      }
+      setLoadingMode('live')
       setFormMessage('Booking request submitted successfully.')
       setFormData({
         ...initialForm,
@@ -275,7 +341,9 @@ const Booking = () => {
   const handleCancel = async (bookingId) => {
     resetMessages()
 
-    if (!userId || loadingMode === 'preview') {
+    const hasLiveIdentity = Boolean(userEmail) && Boolean(userItNumber) && userItNumber !== 'IT Number'
+
+    if (!hasLiveIdentity) {
       setBookings((current) =>
         current.map((booking) =>
           booking.id === bookingId
@@ -288,14 +356,8 @@ const Booking = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/cancel?userId=${normalizedRouteUserId}`, {
+      const response = await fetch(`${BOOKINGS_API_URL}/${bookingId}/cancel?email=${encodeURIComponent(userEmail)}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: 'Cancelled by requester from booking page.',
-        }),
       })
 
       const data = await response.json()
@@ -305,7 +367,11 @@ const Booking = () => {
         return
       }
 
-      setBookings((current) => current.map((booking) => (booking.id === bookingId ? data : booking)))
+      setBookings((current) => current.map((booking) => (booking.id === bookingId ? {
+        ...data,
+        resourceId: booking.resourceId,
+        expectedAttendees: booking.expectedAttendees,
+      } : booking)))
       setFormMessage('Booking cancelled successfully.')
     } catch {
       setFormError('Unable to connect to the booking service right now.')
@@ -320,6 +386,20 @@ const Booking = () => {
       expectedAttendees: String(Math.min(Number(current.expectedAttendees || 1), resource.capacity)),
     }))
     resetMessages()
+  }
+
+  const applyTimeSuggestion = (slot) => {
+    const parts = String(slot).split('-').map((part) => part.trim())
+    if (parts.length !== 2) {
+      return
+    }
+
+    setFormData((current) => ({
+      ...current,
+      startTime: parts[0],
+      endTime: parts[1],
+    }))
+    setFormError('')
   }
 
   return (
@@ -390,8 +470,8 @@ const Booking = () => {
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-teal-100">Next active booking</p>
               <p className="mt-2 text-xl font-bold text-white">
-                {nextBooking
-                  ? `${getResourceById(nextBooking.resourceId).name} on ${formatDate(nextBooking.bookingDate)}`
+                  {nextBooking
+                    ? `${nextBooking.resourceName || getResourceById(nextBooking.resourceId).name} on ${formatDate(nextBooking.bookingDate)}`
                   : 'No active bookings scheduled yet'}
               </p>
             </div>
@@ -500,6 +580,23 @@ const Booking = () => {
               </form>
 
               {formError ? <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{formError}</p> : null}
+              {timeSuggestions.length > 0 ? (
+                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">Suggested available slots</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {timeSuggestions.map((slot) => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => applyTimeSuggestion(slot)}
+                        className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {formMessage ? <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{formMessage}</p> : null}
             </section>
 
@@ -531,7 +628,7 @@ const Booking = () => {
                       >
                         <div>
                           <div className="flex flex-wrap items-center gap-3">
-                            <h4 className="text-lg font-black text-slate-900">{resource.name}</h4>
+                            <h4 className="text-lg font-black text-slate-900">{booking.resourceName || resource.name}</h4>
                             <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusStyles[booking.status] || statusStyles.CANCELLED}`}>
                               {booking.status}
                             </span>
@@ -559,7 +656,7 @@ const Booking = () => {
                           {booking.cancelReason ? (
                             <p className="max-w-55 text-right text-xs text-slate-500">{booking.cancelReason}</p>
                           ) : (
-                            <span className="text-xs uppercase tracking-[0.18em] text-slate-400">{resource.type}</span>
+                            <span className="text-xs uppercase tracking-[0.18em] text-slate-400">{booking.resourceType || resource.type}</span>
                           )}
 
                           {canCancel ? (

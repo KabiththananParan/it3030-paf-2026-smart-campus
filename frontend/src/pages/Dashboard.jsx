@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
 import { API_BASE_URL } from '../config.js'
+import { getMyBookings } from '../api/bookingApi.js'
 
 const NOTIFICATION_API_URL = `${API_BASE_URL}/api/auth/notification-preferences`
 const notificationCategoryLabels = {
@@ -11,12 +12,6 @@ const notificationCategoryLabels = {
   SYSTEM_ANNOUNCEMENTS: 'System Announcements',
   SECURITY_NOTICES: 'Security Notices',
 }
-
-const taskCards = [
-  { title: 'My booking requests', items: '4 active requests', progress: '72%', color: 'bg-violet-700', accent: 'bg-violet-200' },
-  { title: 'Pending approvals', items: '2 awaiting review', progress: '40%', color: 'bg-cyan-500', accent: 'bg-cyan-200' },
-  { title: 'Resolved incidents', items: '9 completed items', progress: '88%', color: 'bg-orange-500', accent: 'bg-orange-200' },
-]
 
 const todayTasks = [
   { name: 'Projector fault - Hall A3', detail: 'Assigned to technician', color: 'bg-orange-500' },
@@ -33,10 +28,61 @@ const calendarItems = [
 const Dashboard = () => {
   const navigate = useNavigate()
   const user = getAuthUser()
+  const [activeSection, setActiveSection] = useState('Dashboard')
+  const [bookings, setBookings] = useState([])
+  const [bookingError, setBookingError] = useState('')
+  const [isBookingsLoading, setIsBookingsLoading] = useState(false)
+  const [bookingNotifications, setBookingNotifications] = useState([])
   const [notificationPreferences, setNotificationPreferences] = useState({})
   const [notificationStatus, setNotificationStatus] = useState('')
   const [isNotificationLoading, setIsNotificationLoading] = useState(false)
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
+
+  const bookingUpdatesEnabled = notificationPreferences.BOOKING_UPDATES !== false
+  const pendingRequests = bookings.filter((booking) => booking.status === 'PENDING')
+  const approvedBookings = bookings.filter((booking) => booking.status === 'APPROVED')
+
+  const taskCards = [
+    {
+      title: 'My booking requests',
+      items: `${pendingRequests.length} active request${pendingRequests.length === 1 ? '' : 's'}`,
+      progress: bookings.length === 0 ? '0%' : `${Math.round((pendingRequests.length / bookings.length) * 100)}%`,
+      color: 'bg-violet-700',
+      accent: 'bg-violet-200',
+    },
+    {
+      title: 'My bookings',
+      items: `${approvedBookings.length} approved booking${approvedBookings.length === 1 ? '' : 's'}`,
+      progress: bookings.length === 0 ? '0%' : `${Math.round((approvedBookings.length / bookings.length) * 100)}%`,
+      color: 'bg-emerald-600',
+      accent: 'bg-emerald-200',
+    },
+    {
+      title: 'Total records',
+      items: `${bookings.length} booking item${bookings.length === 1 ? '' : 's'}`,
+      progress: '100%',
+      color: 'bg-cyan-500',
+      accent: 'bg-cyan-200',
+    },
+  ]
+
+  const loadBookings = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    setIsBookingsLoading(true)
+    setBookingError('')
+
+    try {
+      const data = await getMyBookings(user.email)
+      setBookings(Array.isArray(data) ? data : [])
+    } catch (error) {
+      setBookingError(error.message || 'Failed to load your bookings.')
+    } finally {
+      setIsBookingsLoading(false)
+    }
+  }
 
   const fetchNotificationPreferences = async () => {
     if (!user?.email) {
@@ -65,8 +111,39 @@ const Dashboard = () => {
   useEffect(() => {
     if (user?.email) {
       fetchNotificationPreferences()
+      void loadBookings()
     }
   }, [user?.email])
+
+  useEffect(() => {
+    if (!user?.email) {
+      return
+    }
+
+    const storageKey = `seen_approved_bookings_${user.email.toLowerCase()}`
+    const seenApprovedIds = new Set(JSON.parse(localStorage.getItem(storageKey) || '[]'))
+    const latestApproved = approvedBookings.filter((booking) => !seenApprovedIds.has(String(booking.id)))
+
+    if (latestApproved.length > 0 && bookingUpdatesEnabled) {
+      const latestNotifications = latestApproved.map((booking) => ({
+        id: `approved-${booking.id}`,
+        title: 'Booking Approved',
+        detail: `${booking.resourceName} on ${booking.bookingDate} (${booking.startTime} - ${booking.endTime})`,
+      }))
+      setBookingNotifications((prev) => {
+        const known = new Set(prev.map((item) => item.id))
+        const merged = [...prev]
+        latestNotifications.forEach((item) => {
+          if (!known.has(item.id)) {
+            merged.unshift(item)
+          }
+        })
+        return merged.slice(0, 8)
+      })
+    }
+
+    localStorage.setItem(storageKey, JSON.stringify(approvedBookings.map((booking) => String(booking.id))))
+  }, [approvedBookings, bookingUpdatesEnabled, user?.email])
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -140,11 +217,16 @@ const Dashboard = () => {
           </div>
 
           <nav className="mt-8 space-y-2 text-sm font-semibold text-slate-600">
-            <button className="w-full rounded-xl bg-slate-900 px-4 py-3 text-left text-white">Dashboard</button>
-            <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">My Bookings</button>
-            <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">My Requests</button>
-            <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">Notifications</button>
-            <button className="w-full rounded-xl px-4 py-3 text-left hover:bg-slate-100">Profile</button>
+            {['Dashboard', 'My Bookings', 'My Requests', 'Notifications'].map((section) => (
+              <button
+                key={section}
+                type="button"
+                onClick={() => setActiveSection(section)}
+                className={`w-full rounded-xl px-4 py-3 text-left ${activeSection === section ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
+              >
+                {section}
+              </button>
+            ))}
           </nav>
 
           <button onClick={handleLogout} className="mt-10 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">
@@ -162,7 +244,13 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Notifications</button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('Notifications')}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Notifications {bookingNotifications.length > 0 ? `(${bookingNotifications.length})` : ''}
+              </button>
               <button className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Quick Actions</button>
             </div>
           </nav>
@@ -172,48 +260,120 @@ const Dashboard = () => {
               <h1 className="text-3xl font-black text-slate-900">Hello, {userItNumber}</h1>
               <p className="text-sm text-slate-500">Your bookings, requests, and status updates at a glance.</p>
             </div>
-            <button className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white">Create Request</button>
+            <button
+              type="button"
+              onClick={() => navigate('/resources')}
+              className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-800"
+            >
+              Book Now
+            </button>
           </div>
 
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-black text-slate-900">Notification Preferences</h2>
-                <p className="text-sm text-slate-500">Enable or disable categories for your account notifications.</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleSaveNotificationPreferences}
-                disabled={isNotificationSaving || isNotificationLoading}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {isNotificationSaving ? 'Saving...' : 'Save Preferences'}
-              </button>
+          {isBookingsLoading ? <p className="mt-4 text-sm text-slate-500">Loading your bookings...</p> : null}
+          {bookingError ? <p className="mt-4 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-700">{bookingError}</p> : null}
+
+          {bookingNotifications.length > 0 && bookingUpdatesEnabled ? (
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-sm font-bold text-emerald-800">Booking Approved Notification</p>
+              <p className="text-sm text-emerald-700">You have {bookingNotifications.length} approved booking update{bookingNotifications.length === 1 ? '' : 's'}.</p>
             </div>
+          ) : null}
 
-            {notificationStatus ? <p className="mt-3 text-sm text-slate-700">{notificationStatus}</p> : null}
+          {activeSection === 'My Bookings' ? (
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-lg font-black text-slate-900">My Bookings (Approved)</h2>
+              {approvedBookings.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-500">No approved bookings yet.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {approvedBookings.slice(0, 6).map((booking) => (
+                    <div key={booking.id} className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+                      <p className="font-semibold text-slate-900">{booking.resourceName}</p>
+                      <p className="text-sm text-slate-600">{booking.bookingDate} | {booking.startTime} - {booking.endTime}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
 
-            {isNotificationLoading ? (
-              <p className="mt-3 text-sm text-slate-500">Loading notification preferences...</p>
-            ) : (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {Object.keys(notificationCategoryLabels).map((category) => {
-                  const isEnabled = Boolean(notificationPreferences[category])
-                  return (
-                    <label key={category} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
-                      <span className="text-sm font-semibold text-slate-700">{notificationCategoryLabels[category]}</span>
-                      <input
-                        type="checkbox"
-                        checked={isEnabled}
-                        onChange={() => handleNotificationToggle(category)}
-                        className="h-5 w-5 accent-slate-900"
-                      />
-                    </label>
-                  )
-                })}
+          {activeSection === 'My Requests' ? (
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-lg font-black text-slate-900">My Requests (Pending)</h2>
+              {pendingRequests.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-500">No pending requests.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {pendingRequests.slice(0, 6).map((booking) => (
+                    <div key={booking.id} className="rounded-xl border border-amber-200 bg-white px-3 py-2">
+                      <p className="font-semibold text-slate-900">{booking.resourceName}</p>
+                      <p className="text-sm text-slate-600">{booking.bookingDate} | {booking.startTime} - {booking.endTime}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {activeSection === 'Notifications' ? (
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-lg font-black text-slate-900">My Notifications</h2>
+              {bookingNotifications.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-500">No booking approval notifications yet.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {bookingNotifications.map((notification) => (
+                    <div key={notification.id} className="rounded-xl border border-emerald-200 bg-white px-3 py-2">
+                      <p className="text-sm font-bold text-emerald-800">{notification.title}</p>
+                      <p className="text-sm text-slate-700">{notification.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {activeSection === 'Notifications' ? (
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">Notification Preferences</h2>
+                  <p className="text-sm text-slate-500">Enable or disable categories for your account notifications.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveNotificationPreferences}
+                  disabled={isNotificationSaving || isNotificationLoading}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {isNotificationSaving ? 'Saving...' : 'Save Preferences'}
+                </button>
               </div>
-            )}
-          </section>
+
+              {notificationStatus ? <p className="mt-3 text-sm text-slate-700">{notificationStatus}</p> : null}
+
+              {isNotificationLoading ? (
+                <p className="mt-3 text-sm text-slate-500">Loading notification preferences...</p>
+              ) : (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {Object.keys(notificationCategoryLabels).map((category) => {
+                    const isEnabled = Boolean(notificationPreferences[category])
+                    return (
+                      <label key={category} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <span className="text-sm font-semibold text-slate-700">{notificationCategoryLabels[category]}</span>
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={() => handleNotificationToggle(category)}
+                          className="h-5 w-5 accent-slate-900"
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          ) : null}
 
           <section className="mt-6 grid gap-4 md:grid-cols-3">
             {taskCards.map((card) => (

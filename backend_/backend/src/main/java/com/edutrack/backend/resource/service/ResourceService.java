@@ -2,7 +2,9 @@ package com.edutrack.backend.resource.service;
 
 import com.edutrack.backend.resource.entity.Resource;
 import com.edutrack.backend.resource.repository.ResourceRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -25,7 +27,7 @@ public class ResourceService {
 
     public Resource getResourceById(Long id) {
         return resourceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Resource not found with id: " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found with id: " + id));
     }
 
     public Resource updateResource(Long id, Resource details) {
@@ -40,6 +42,9 @@ public class ResourceService {
     }
 
     public void deleteResource(Long id) {
+        if (!resourceRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found with id: " + id);
+        }
         resourceRepository.deleteById(id);
     }
 

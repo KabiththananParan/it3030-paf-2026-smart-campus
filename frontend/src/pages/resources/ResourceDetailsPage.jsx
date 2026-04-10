@@ -176,6 +176,7 @@ const ResourceDetailsPage = () => {
                         <div className="mt-16 pt-10 border-t border-slate-50">
                             {/* Disable button if out of service */}
                             <button
+                                onClick={() => navigate(`/booking?resourceId=${resource.id}`)}
                                 disabled={resource.status === 'OUT_OF_SERVICE'}
                                 className={`w-full flex items-center justify-center gap-4 py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-2xl transition-all duration-300 ${resource.status === 'OUT_OF_SERVICE'
                                         ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
@@ -186,7 +187,7 @@ const ResourceDetailsPage = () => {
                                 {resource.status === 'OUT_OF_SERVICE' ? 'Resource Unavailable' : 'Confirm Reservation'}
                             </button>
                             <p className="text-center text-slate-300 text-[9px] font-bold uppercase tracking-[0.2em] mt-8">
-                                Smart Campus Resource Management System • Module A
+                                Smart Campus Resource Management System ï¿½ Module A
                             </p>
                         </div>
                     </div>

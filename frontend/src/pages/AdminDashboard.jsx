@@ -7,6 +7,8 @@ import { API_BASE_URL } from '../config.js'
 const adminSections = ['Users', 'Resources', 'Bookings', 'Notifications']
 const USERS_API_URL = `${API_BASE_URL}/api/auth/admin/users`
 const NOTIFICATION_API_URL = `${API_BASE_URL}/api/auth/notification-preferences`
+const RESOURCES_API_URL = `${API_BASE_URL}/api/resources`
+const BOOKINGS_API_URL = `${API_BASE_URL}/api/bookings`
 const notificationCategoryLabels = {
   BOOKING_UPDATES: 'Booking Updates',
   MAINTENANCE_ALERTS: 'Maintenance Alerts',
@@ -54,6 +56,32 @@ const AdminDashboard = () => {
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
   const [adminNotifications, setAdminNotifications] = useState(initialAdminNotifications)
+  const [resources, setResources] = useState([])
+  const [isResourcesLoading, setIsResourcesLoading] = useState(false)
+  const [resourcesStatus, setResourcesStatus] = useState('')
+  const [resourceCrudStatus, setResourceCrudStatus] = useState('')
+  const [resourceFormData, setResourceFormData] = useState({
+    name: '',
+    type: 'LAB',
+    capacity: 1,
+    location: '',
+    availabilityWindows: '',
+    status: 'AVAILABLE',
+  })
+  const [isSubmittingResource, setIsSubmittingResource] = useState(false)
+  const [editingResourceId, setEditingResourceId] = useState(null)
+  const [editResourceFormData, setEditResourceFormData] = useState({
+    name: '',
+    type: 'LAB',
+    capacity: 1,
+    location: '',
+    availabilityWindows: '',
+    status: 'AVAILABLE',
+  })
+  const [bookings, setBookings] = useState([])
+  const [isBookingsLoading, setIsBookingsLoading] = useState(false)
+  const [bookingsStatus, setBookingsStatus] = useState('')
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL')
 
   const unreadNotificationCount = adminNotifications.filter((notification) => !notification.read).length
 
@@ -61,7 +89,7 @@ const AdminDashboard = () => {
     setIsUsersLoading(true)
     setUsersStatus('')
     try {
-      const response = await fetch(API_BASE_URL)
+      const response = await fetch(USERS_API_URL)
       const data = await response.json()
 
       if (!response.ok) {
@@ -74,6 +102,47 @@ const AdminDashboard = () => {
       setUsersStatus('Cannot connect to server. Please start backend and try again.')
     } finally {
       setIsUsersLoading(false)
+    }
+  }
+
+  const fetchResources = async () => {
+    setIsResourcesLoading(true)
+    setResourcesStatus('')
+    try {
+      const response = await fetch(`${RESOURCES_API_URL}/all`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        setResourcesStatus(data.message || 'Failed to load resources.')
+        return
+      }
+
+      setResources(Array.isArray(data) ? data : [])
+    } catch {
+      setResourcesStatus('Cannot connect to server. Please start backend and try again.')
+    } finally {
+      setIsResourcesLoading(false)
+    }
+  }
+
+  const fetchBookings = async () => {
+    setIsBookingsLoading(true)
+    setBookingsStatus('')
+    try {
+      const query = bookingStatusFilter === 'ALL' ? '' : `?status=${encodeURIComponent(bookingStatusFilter)}`
+      const response = await fetch(`${BOOKINGS_API_URL}${query}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        setBookingsStatus(data.message || 'Failed to load bookings.')
+        return
+      }
+
+      setBookings(Array.isArray(data) ? data : [])
+    } catch {
+      setBookingsStatus('Cannot connect to server. Please start backend and try again.')
+    } finally {
+      setIsBookingsLoading(false)
     }
   }
 
@@ -105,7 +174,19 @@ const AdminDashboard = () => {
     if (activeSection === 'Users') {
       fetchUsers()
     }
+    if (activeSection === 'Resources') {
+      fetchResources()
+    }
+    if (activeSection === 'Bookings') {
+      fetchBookings()
+    }
   }, [activeSection])
+
+  useEffect(() => {
+    if (activeSection === 'Bookings') {
+      fetchBookings()
+    }
+  }, [bookingStatusFilter])
 
   useEffect(() => {
     if (activeSection === 'Notifications') {
@@ -227,7 +308,7 @@ const AdminDashboard = () => {
     setIsUpdatingUser(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/${editingUserId}`, {
+      const response = await fetch(`${USERS_API_URL}/${editingUserId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -263,7 +344,7 @@ const AdminDashboard = () => {
     setCrudStatus('')
 
     try {
-      const response = await fetch(`${API_BASE_URL}/${userToDelete.id}`, {
+      const response = await fetch(`${USERS_API_URL}/${userToDelete.id}`, {
         method: 'DELETE',
       })
 
@@ -340,6 +421,122 @@ const AdminDashboard = () => {
         ? { ...notification, read: true }
         : notification
     )))
+  }
+
+  const handleResourceInputChange = (event) => {
+    const { name, value } = event.target
+    setResourceFormData((prev) => ({
+      ...prev,
+      [name]: name === 'capacity' ? Number(value) : value,
+    }))
+  }
+
+  const handleCreateResource = async (event) => {
+    event.preventDefault()
+    setResourceCrudStatus('')
+    setIsSubmittingResource(true)
+    try {
+      const response = await fetch(`${RESOURCES_API_URL}/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resourceFormData),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setResourceCrudStatus(data.message || 'Failed to create resource.')
+        return
+      }
+
+      setResourceCrudStatus(`Resource created: ${data.name}`)
+      setResourceFormData({
+        name: '',
+        type: 'LAB',
+        capacity: 1,
+        location: '',
+        availabilityWindows: '',
+        status: 'AVAILABLE',
+      })
+      fetchResources()
+    } catch {
+      setResourceCrudStatus('Cannot connect to server. Please start backend and try again.')
+    } finally {
+      setIsSubmittingResource(false)
+    }
+  }
+
+  const handleStartResourceEdit = (resource) => {
+    setEditingResourceId(resource.id)
+    setEditResourceFormData({
+      name: resource.name || '',
+      type: resource.type || 'LAB',
+      capacity: resource.capacity || 1,
+      location: resource.location || '',
+      availabilityWindows: resource.availabilityWindows || '',
+      status: resource.status || 'AVAILABLE',
+    })
+    setResourceCrudStatus('')
+  }
+
+  const handleEditResourceInputChange = (event) => {
+    const { name, value } = event.target
+    setEditResourceFormData((prev) => ({
+      ...prev,
+      [name]: name === 'capacity' ? Number(value) : value,
+    }))
+  }
+
+  const handleUpdateResource = async (event) => {
+    event.preventDefault()
+    if (!editingResourceId) {
+      return
+    }
+
+    setResourceCrudStatus('')
+    try {
+      const response = await fetch(`${RESOURCES_API_URL}/${editingResourceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editResourceFormData),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setResourceCrudStatus(data.message || 'Failed to update resource.')
+        return
+      }
+
+      setResourceCrudStatus(`Resource updated: ${data.name}`)
+      setEditingResourceId(null)
+      fetchResources()
+    } catch {
+      setResourceCrudStatus('Cannot connect to server. Please start backend and try again.')
+    }
+  }
+
+  const handleDeleteResource = async (resource) => {
+    const isConfirmed = window.confirm(`Delete resource ${resource.name}?`)
+    if (!isConfirmed) {
+      return
+    }
+
+    setResourceCrudStatus('')
+    try {
+      const response = await fetch(`${RESOURCES_API_URL}/${resource.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        setResourceCrudStatus('Failed to delete resource.')
+        return
+      }
+
+      setResourceCrudStatus(`Resource deleted: ${resource.name}`)
+      if (editingResourceId === resource.id) {
+        setEditingResourceId(null)
+      }
+      fetchResources()
+    } catch {
+      setResourceCrudStatus('Cannot connect to server. Please start backend and try again.')
+    }
   }
 
   return (
@@ -686,6 +883,171 @@ const AdminDashboard = () => {
                   >
                     {isNotificationSaving ? 'Saving...' : 'Save Preferences'}
                   </button>
+                </div>
+              ) : null}
+
+              {activeSection === 'Resources' ? (
+                <div className="mt-5 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-slate-500">Create, update, and remove campus resources.</p>
+                    <button
+                      type="button"
+                      onClick={fetchResources}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      Refresh Resources
+                    </button>
+                  </div>
+
+                  {resourcesStatus ? <p className="text-sm text-rose-600">{resourcesStatus}</p> : null}
+                  {resourceCrudStatus ? <p className="text-sm text-slate-700">{resourceCrudStatus}</p> : null}
+
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="min-w-full bg-white text-sm">
+                      <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+                        <tr>
+                          <th className="px-3 py-2">Name</th>
+                          <th className="px-3 py-2">Type</th>
+                          <th className="px-3 py-2">Capacity</th>
+                          <th className="px-3 py-2">Location</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {isResourcesLoading ? (
+                          <tr>
+                            <td colSpan="6" className="px-3 py-5 text-center text-slate-500">Loading resources...</td>
+                          </tr>
+                        ) : resources.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="px-3 py-5 text-center text-slate-500">No resources found.</td>
+                          </tr>
+                        ) : (
+                          resources.map((resource) => (
+                            <tr key={resource.id} className="border-t border-slate-100">
+                              <td className="px-3 py-2 text-slate-800">{resource.name}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.type}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.capacity}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.location}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.status}</td>
+                              <td className="px-3 py-2">
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartResourceEdit(resource)}
+                                    className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteResource(resource)}
+                                    className="rounded-lg bg-rose-600 px-3 py-1 text-xs font-bold text-white hover:bg-rose-500"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleCreateResource}>
+                    <input name="name" value={resourceFormData.name} onChange={handleResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
+                    <input name="type" value={resourceFormData.type} onChange={handleResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
+                    <input name="capacity" type="number" min="1" value={resourceFormData.capacity} onChange={handleResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
+                    <input name="location" value={resourceFormData.location} onChange={handleResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="availabilityWindows" value={resourceFormData.availabilityWindows} onChange={handleResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="status" value={resourceFormData.status} onChange={handleResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <button type="submit" disabled={isSubmittingResource} className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60 md:col-span-2">
+                      {isSubmittingResource ? 'Creating...' : 'Create Resource'}
+                    </button>
+                  </form>
+
+                  {editingResourceId ? (
+                    <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleUpdateResource}>
+                      <input name="name" value={editResourceFormData.name} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
+                      <input name="type" value={editResourceFormData.type} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
+                      <input name="capacity" type="number" min="1" value={editResourceFormData.capacity} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" required />
+                      <input name="location" value={editResourceFormData.location} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="availabilityWindows" value={editResourceFormData.availabilityWindows} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="status" value={editResourceFormData.status} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <div className="flex gap-2 md:col-span-2">
+                        <button type="submit" className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white">Update Resource</button>
+                        <button type="button" onClick={() => setEditingResourceId(null)} className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100">Cancel</button>
+                      </div>
+                    </form>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {activeSection === 'Bookings' ? (
+                <div className="mt-5 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-slate-500">View booking requests and quickly open booking tools.</p>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={bookingStatusFilter}
+                        onChange={(event) => setBookingStatusFilter(event.target.value)}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                      >
+                        <option value="ALL">All</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="CANCELLED">Cancelled</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={fetchBookings}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        Refresh Bookings
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    <button type="button" onClick={() => navigate('/bookings/approval')} className="rounded-lg bg-slate-900 px-3 py-2 font-semibold text-white">Open Approval Panel</button>
+                    <button type="button" onClick={() => navigate('/bookings/calendar')} className="rounded-lg border border-slate-300 px-3 py-2 font-semibold text-slate-700">Open Booking Calendar</button>
+                  </div>
+
+                  {bookingsStatus ? <p className="text-sm text-rose-600">{bookingsStatus}</p> : null}
+
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="min-w-full bg-white text-sm">
+                      <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+                        <tr>
+                          <th className="px-3 py-2">Requester</th>
+                          <th className="px-3 py-2">Resource</th>
+                          <th className="px-3 py-2">Date</th>
+                          <th className="px-3 py-2">Time</th>
+                          <th className="px-3 py-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {isBookingsLoading ? (
+                          <tr><td colSpan="5" className="px-3 py-5 text-center text-slate-500">Loading bookings...</td></tr>
+                        ) : bookings.length === 0 ? (
+                          <tr><td colSpan="5" className="px-3 py-5 text-center text-slate-500">No bookings found.</td></tr>
+                        ) : (
+                          bookings.map((booking) => (
+                            <tr key={booking.id} className="border-t border-slate-100">
+                              <td className="px-3 py-2 text-slate-700">{booking.requesterName}</td>
+                              <td className="px-3 py-2 text-slate-700">{booking.resourceName}</td>
+                              <td className="px-3 py-2 text-slate-700">{booking.bookingDate}</td>
+                              <td className="px-3 py-2 text-slate-700">{booking.startTime} - {booking.endTime}</td>
+                              <td className="px-3 py-2 text-slate-700">{booking.status}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : null}
             </section>

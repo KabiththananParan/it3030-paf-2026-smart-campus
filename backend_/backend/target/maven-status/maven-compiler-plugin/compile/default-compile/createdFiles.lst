@@ -1,3 +1,3 @@
+com\edutrack\backend\auth\config\SecurityConfig.class
 com\edutrack\backend\auth\service\AuthService.class
 com\edutrack\backend\auth\exception\GlobalExceptionHandler.class
-com\edutrack\backend\auth\config\SecurityConfig.class

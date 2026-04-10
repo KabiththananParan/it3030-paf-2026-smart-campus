@@ -1,11 +1,13 @@
 package com.edutrack.backend.auth.exception;
 
+import com.edutrack.backend.booking.exception.BookingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -30,6 +32,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleAuthException(AuthException ex) {
         Map<String, Object> response = baseErrorBody(ex.getMessage(), HttpStatus.BAD_REQUEST.value());
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @ExceptionHandler(BookingException.class)
+    public ResponseEntity<Map<String, Object>> handleBookingException(BookingException ex) {
+        int status = ex.getStatus().value();
+        Map<String, Object> response = baseErrorBody(ex.getMessage(), status);
+        response.put("suggestions", ex.getSuggestions());
+        return ResponseEntity.status(ex.getStatus()).body(response);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
+        int status = ex.getStatusCode().value();
+        Map<String, Object> response = baseErrorBody(ex.getReason() != null ? ex.getReason() : "Request failed", status);
+        return ResponseEntity.status(ex.getStatusCode()).body(response);
     }
 
     @ExceptionHandler(Exception.class)

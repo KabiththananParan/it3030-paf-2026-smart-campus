@@ -4,12 +4,15 @@ import BookingApprovalPage from './pages/BookingApprovalPage.jsx'
 import BookingCalendarPage from './pages/BookingCalendarPage.jsx'
 import BookingFormPage from './pages/BookingFormPage.jsx'
 import BookingQrDetailsPage from './pages/BookingQrDetailsPage.jsx'
+import Booking from './pages/Booking.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import ManagerDashboard from './pages/ManagerDashboard.jsx'
 import MyBookingsPage from './pages/MyBookingsPage.jsx'
+import ResourceDetailsPage from './pages/resources/ResourceDetailsPage.jsx'
+import ResourceListPage from './pages/resources/ResourceListPage.jsx'
 import SignUp from './pages/SignUp.jsx'
 import TechnicianDashboard from './pages/TechnicianDashboard.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -31,6 +34,22 @@ function App() {
         }
       />
       <Route
+        path="/resources"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <ResourceListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/resource/details/:id"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <ResourceDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/bookings"
         element={
           <ProtectedRoute minRole={ROLES.USER}>
@@ -43,6 +62,14 @@ function App() {
         element={
           <ProtectedRoute minRole={ROLES.USER}>
             <BookingFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/booking"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <Booking />
           </ProtectedRoute>
         }
       />
