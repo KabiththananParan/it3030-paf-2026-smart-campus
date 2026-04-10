@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { jsPDF } from 'jspdf'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { addRequesterReply, cancelTicket, deleteAttachment, getTicketAttachmentUrl, getTicketById, updateTicket, uploadAttachments } from '../../api/ticketApi.js'
 import TicketStatusBadge from '../../components/tickets/TicketStatusBadge.jsx'
@@ -322,6 +323,147 @@ const TicketDetailsPage = () => {
   const hasAdminFollowUp = Boolean(ticket.adminMessage || ticket.requestedDocuments)
   const isAwaitingReply = ticket.status === 'AWAITING_FOR_REPLY'
 
+  const handlePrintTicket = () => {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 12
+    const contentWidth = pageWidth - margin * 2
+    let y = 16
+
+    const ensureSpace = (heightNeeded) => {
+      if (y + heightNeeded <= pageHeight - margin) {
+        return
+      }
+      doc.addPage()
+      y = margin
+    }
+
+    const drawCard = (title, rows, options = {}) => {
+      const titleSize = 12
+      const textSize = 10
+      const rowGap = 5.5
+      const topPad = 8
+      const sidePad = 8
+      const bottomPad = 7
+      const boxWidth = contentWidth
+      const labelWidth = 52
+
+      doc.setFontSize(textSize)
+      const wrappedRows = rows.map((row) => {
+        const valueLines = doc.splitTextToSize(String(row.value || '-'), boxWidth - sidePad * 2 - labelWidth)
+        return {
+          label: row.label,
+          valueLines,
+          height: Math.max(1, valueLines.length) * rowGap,
+        }
+      })
+
+      const bodyHeight = wrappedRows.reduce((acc, row) => acc + row.height, 0)
+      const cardHeight = topPad + 7 + bodyHeight + bottomPad
+      ensureSpace(cardHeight + 6)
+
+      if (options.fillColor) {
+        doc.setFillColor(...options.fillColor)
+        doc.roundedRect(margin, y, boxWidth, cardHeight, 4, 4, 'F')
+      } else {
+        doc.setFillColor(255, 255, 255)
+        doc.setDrawColor(226, 232, 240)
+        doc.roundedRect(margin, y, boxWidth, cardHeight, 4, 4, 'FD')
+      }
+
+      doc.setTextColor(...(options.titleColor || [15, 23, 42]))
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(titleSize)
+      doc.text(title, margin + sidePad, y + topPad)
+
+      let rowY = y + topPad + 7
+      doc.setFontSize(textSize)
+      wrappedRows.forEach((row) => {
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(...(options.labelColor || [71, 85, 105]))
+        doc.text(`${row.label}:`, margin + sidePad, rowY)
+
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(...(options.textColor || [15, 23, 42]))
+        doc.text(row.valueLines, margin + sidePad + labelWidth, rowY)
+        rowY += row.height
+      })
+
+      y += cardHeight + 6
+    }
+
+    doc.setFillColor(15, 23, 42)
+    doc.roundedRect(margin, y, contentWidth, 34, 5, 5, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(18)
+    doc.text(`Request #${ticket.id}`, margin + 8, y + 12)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(String(requestTypeLabel || '-'), margin + 8, y + 20)
+    doc.text(`Status: ${String(ticket.status || '-')}`, margin + 8, y + 27)
+    y += 42
+
+    drawCard('Request Summary', [
+      { label: 'Category', value: ticket.category },
+      { label: 'Priority', value: ticket.priority },
+      { label: 'Created by', value: `${ticket.createdByName || '-'} (${ticket.createdByEmail || '-'})` },
+      { label: 'Assigned', value: ticket.assignedTechnicianName || 'Unassigned' },
+    ])
+
+    drawCard('Requester Details', [
+      { label: 'Name', value: ticket.preferredContactName },
+      { label: 'Email', value: ticket.preferredContactEmail },
+      { label: 'Phone', value: ticket.preferredContactPhone || '-' },
+      { label: 'Registration', value: metadata.registrationNumber },
+      { label: 'Faculty / School', value: metadata.facultySchool },
+      { label: 'Department', value: metadata.department },
+      { label: 'Campus / Center', value: metadata.campusCenter !== '-' ? metadata.campusCenter : ticket.location },
+    ])
+
+    drawCard('Request Message', [
+      { label: 'Message', value: metadata.message },
+    ])
+
+    drawCard('Resolution Notes (Admin)', [
+      { label: 'Notes', value: ticket.resolutionNotes || 'No resolution notes yet.' },
+    ], {
+      fillColor: [255, 251, 235],
+      titleColor: [146, 64, 14],
+      labelColor: [180, 83, 9],
+      textColor: [120, 53, 15],
+    })
+
+    drawCard('Reply to Admin', [
+      { label: 'Reply', value: ticket.requesterReply || 'No reply sent yet.' },
+    ], {
+      fillColor: [236, 254, 255],
+      titleColor: [8, 145, 178],
+      labelColor: [14, 116, 144],
+      textColor: [15, 23, 42],
+    })
+
+    drawCard('Additional Information', [
+      { label: 'Admin follow-up', value: ticket.adminMessage || '-' },
+      { label: 'Requested docs', value: ticket.requestedDocuments || '-' },
+      { label: 'Rejection reason', value: ticket.rejectionReason || '-' },
+      {
+        label: 'Attachments',
+        value: ticket.attachments?.length
+          ? ticket.attachments.map((item) => item.originalFileName).join(', ')
+          : 'None',
+      },
+    ])
+
+    doc.setTextColor(100, 116, 139)
+    doc.setFontSize(9)
+    doc.text(`Generated on ${new Date().toLocaleString()}`, margin, pageHeight - 8)
+
+    const safeName = `ticket-${ticket.id}.pdf`
+    doc.save(safeName)
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -366,8 +508,16 @@ const TicketDetailsPage = () => {
                 <div>{metadata.campusCenter !== '-' ? metadata.campusCenter : (ticket.location || 'No campus/center provided')}</div>
                 <div>{metadata.department !== '-' ? metadata.department : 'No department provided'}</div>
               </div>
-              {canEditOrCancel ? (
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handlePrintTicket}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
+                >
+                  Print
+                </button>
+                {canEditOrCancel ? (
+                  <>
                   <button
                     type="button"
                     onClick={handleStartEdit}
@@ -383,8 +533,9 @@ const TicketDetailsPage = () => {
                   >
                     {isCancelling ? 'Cancelling...' : 'Cancel Ticket'}
                   </button>
-                </div>
-              ) : null}
+                  </>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
