@@ -16,6 +16,13 @@ const notificationCategoryLabels = {
   SECURITY_NOTICES: 'Security Notices',
 }
 
+const resourceTypeLabels = {
+  LAB: 'Lab',
+  LECTURE_HALL: 'Lecture Hall',
+  MEETING_ROOM: 'Meeting Room',
+  EQUIPMENT: 'Equipment',
+}
+
 const initialAdminNotifications = [
   { id: 1, title: 'New booking request', detail: 'Computer Lab B needs approval.', time: '5 min ago', read: false },
   { id: 2, title: 'Maintenance alert', detail: 'Projector fault reported in Hall A3.', time: '20 min ago', read: false },
@@ -63,6 +70,13 @@ const AdminDashboard = () => {
   const [isResourcesLoading, setIsResourcesLoading] = useState(false)
   const [resourcesStatus, setResourcesStatus] = useState('')
   const [resourceCrudStatus, setResourceCrudStatus] = useState('')
+  const [resourceFilters, setResourceFilters] = useState({
+    name: '',
+    type: '',
+    status: '',
+    location: '',
+    minCapacity: '',
+  })
   const [resourceFormData, setResourceFormData] = useState({
     name: '',
     type: 'LAB',
@@ -87,6 +101,57 @@ const AdminDashboard = () => {
   const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL')
 
   const unreadNotificationCount = adminNotifications.filter((notification) => !notification.read).length
+
+  const getResourceStatusLabel = (resource) => {
+    const status = (resource?.status || '').toUpperCase()
+    if (status === 'OUT_OF_SERVICE') {
+      return { label: 'Out of Service', tone: 'rose' }
+    }
+
+    if (status === 'BUSY') {
+      return { label: 'Busy', tone: 'amber' }
+    }
+
+    return { label: 'Available', tone: 'emerald' }
+  }
+
+  const getResourceDisplayStatus = (resource) => {
+    const status = (resource?.status || '').toUpperCase()
+    if (status === 'OUT_OF_SERVICE' || status === 'AVAILABLE' || status === 'BUSY') {
+      return status
+    }
+
+    return 'AVAILABLE'
+  }
+
+  const filteredResources = resources.filter((resource) => {
+    const displayStatus = getResourceDisplayStatus(resource)
+    return (
+      (resource.name || '').toLowerCase().includes(resourceFilters.name.toLowerCase()) &&
+      (resource.type || '').toLowerCase().includes(resourceFilters.type.toLowerCase()) &&
+      (resource.location || '').toLowerCase().includes(resourceFilters.location.toLowerCase()) &&
+      displayStatus.toLowerCase().includes(resourceFilters.status.toLowerCase()) &&
+      (resourceFilters.minCapacity === '' || Number(resource.capacity || 0) >= Number(resourceFilters.minCapacity))
+    )
+  })
+
+  const handleResourceFilterChange = (event) => {
+    const { name, value } = event.target
+    setResourceFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleClearResourceFilters = () => {
+    setResourceFilters({
+      name: '',
+      type: '',
+      status: '',
+      location: '',
+      minCapacity: '',
+    })
+  }
 
   const fetchUsers = async () => {
     setIsUsersLoading(true)
@@ -203,6 +268,10 @@ const AdminDashboard = () => {
 
   if (user.role !== 'ADMIN') {
     return <Navigate to="/dashboard" replace />
+  }
+
+  if (resolvedInitialSection === 'Resources') {
+    return <Navigate to="/admin/resources" replace />
   }
 
   const handleLogout = () => {
@@ -649,7 +718,14 @@ const AdminDashboard = () => {
                   <button
                     key={section}
                     type="button"
-                    onClick={() => setActiveSection(section)}
+                    onClick={() => {
+                      if (section === 'Resources') {
+                        navigate('/admin/resources')
+                        return
+                      }
+
+                      setActiveSection(section)
+                    }}
                     className={`w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
                       isActive
                         ? 'bg-slate-900 text-white'
@@ -906,23 +982,110 @@ const AdminDashboard = () => {
               ) : null}
 
               {activeSection === 'Resources' ? (
-                <div className="mt-5 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm text-slate-500">Create, update, and remove campus resources.</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => navigate('/admin/resources/add')}
-                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                      >
-                        Open Add Resource
-                      </button>
-                      <button
-                        type="button"
-                        onClick={fetchResources}
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                      >
-                        Refresh Resources
+                <div className="mt-5 space-y-6">
+                  <div className="rounded-[2rem] bg-[#003366] px-6 py-8 text-white shadow-lg shadow-slate-200/60">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h3 className="text-4xl font-black tracking-tight">EduTrack <span className="text-[#008080]">Inventory</span></h3>
+                        <p className="mt-2 text-sm font-medium tracking-wide text-blue-100/70">SLIIT RESOURCE MANAGEMENT SYSTEM</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingResourceId(null)
+                            setEditResourceFormData({
+                              name: '',
+                              type: 'LAB',
+                              capacity: 1,
+                              location: '',
+                              availabilityWindows: '',
+                              status: 'AVAILABLE',
+                            })
+                            document.getElementById('resource-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }}
+                          className="rounded-xl bg-[#F39200] px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110"
+                        >
+                          Add New Resource
+                        </button>
+                        <button
+                          type="button"
+                          onClick={fetchResources}
+                          className="rounded-xl border border-white/20 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+                        >
+                          Refresh Resources
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.6rem] border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                      <div className="space-y-1">
+                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</label>
+                        <input
+                          name="name"
+                          value={resourceFilters.name}
+                          onChange={handleResourceFilterChange}
+                          placeholder="Search..."
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
+                        <select
+                          name="type"
+                          value={resourceFilters.type}
+                          onChange={handleResourceFilterChange}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
+                        >
+                          <option value="">All</option>
+                          <option value="LAB">Lab</option>
+                          <option value="LECTURE_HALL">Lecture Hall</option>
+                          <option value="MEETING_ROOM">Meeting Room</option>
+                          <option value="EQUIPMENT">Equipment</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</label>
+                        <select
+                          name="status"
+                          value={resourceFilters.status}
+                          onChange={handleResourceFilterChange}
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
+                        >
+                          <option value="">All</option>
+                          <option value="AVAILABLE">Available</option>
+                          <option value="BUSY">Busy</option>
+                          <option value="OUT_OF_SERVICE">Out of Service</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Location</label>
+                        <input
+                          name="location"
+                          value={resourceFilters.location}
+                          onChange={handleResourceFilterChange}
+                          placeholder="Block..."
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Min Capacity</label>
+                        <input
+                          name="minCapacity"
+                          type="number"
+                          min="1"
+                          value={resourceFilters.minCapacity}
+                          onChange={handleResourceFilterChange}
+                          placeholder="Qty"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button type="button" onClick={handleClearResourceFilters} className="text-sm font-bold text-slate-500 hover:text-rose-500">
+                        Reset
                       </button>
                     </div>
                   </div>
@@ -930,74 +1093,134 @@ const AdminDashboard = () => {
                   {resourcesStatus ? <p className="text-sm text-rose-600">{resourcesStatus}</p> : null}
                   {resourceCrudStatus ? <p className="text-sm text-slate-700">{resourceCrudStatus}</p> : null}
 
-                  <div className="overflow-x-auto rounded-xl border border-slate-200">
-                    <table className="min-w-full bg-white text-sm">
-                      <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
-                        <tr>
-                          <th className="px-3 py-2">Name</th>
-                          <th className="px-3 py-2">Type</th>
-                          <th className="px-3 py-2">Capacity</th>
-                          <th className="px-3 py-2">Location</th>
-                          <th className="px-3 py-2">Status</th>
-                          <th className="px-3 py-2">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {isResourcesLoading ? (
-                          <tr>
-                            <td colSpan="6" className="px-3 py-5 text-center text-slate-500">Loading resources...</td>
-                          </tr>
-                        ) : resources.length === 0 ? (
-                          <tr>
-                            <td colSpan="6" className="px-3 py-5 text-center text-slate-500">No resources found.</td>
-                          </tr>
-                        ) : (
-                          resources.map((resource) => (
-                            <tr key={resource.id} className="border-t border-slate-100">
-                              <td className="px-3 py-2 text-slate-800">{resource.name}</td>
-                              <td className="px-3 py-2 text-slate-700">{resource.type}</td>
-                              <td className="px-3 py-2 text-slate-700">{resource.capacity}</td>
-                              <td className="px-3 py-2 text-slate-700">{resource.location}</td>
-                              <td className="px-3 py-2 text-slate-700">{resource.status}</td>
-                              <td className="px-3 py-2">
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/admin/resources/manage/${resource.id}`)}
-                                    className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => navigate(`/admin/resources/manage/${resource.id}`)}
-                                    className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
-                                  >
-                                    Delete
-                                  </button>
+                  <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                    {isResourcesLoading ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-500 md:col-span-2 lg:col-span-3">Loading resources...</div>
+                    ) : filteredResources.length === 0 ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-500 md:col-span-2 lg:col-span-3">No resources found.</div>
+                    ) : (
+                      filteredResources.map((resource) => {
+                        const statusInfo = getResourceStatusLabel(resource)
+                        return (
+                          <article
+                            key={resource.id}
+                            className={`group flex h-full flex-col justify-between rounded-[2rem] border ${resource.type === 'LAB' ? 'bg-blue-50/70 border-blue-200 text-blue-700 border-t-4 border-t-blue-500' : resource.type === 'EQUIPMENT' ? 'bg-orange-50/70 border-orange-200 text-orange-700 border-t-4 border-t-orange-500' : resource.type === 'LECTURE_HALL' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-700 border-t-4 border-t-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-700 border-t-4 border-t-slate-400'} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                          >
+                            <div>
+                              <div className="mb-6 flex items-start justify-between gap-4">
+                                <div className="rounded-xl bg-white/80 p-3 shadow-sm text-slate-700">
+                                  <span className="text-lg font-black">{resource.type === 'LAB' ? '⌘' : resource.type === 'EQUIPMENT' ? '⚙' : '▣'}</span>
                                 </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                                <span className={`inline-flex items-center rounded-full border bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm ${statusInfo.tone === 'emerald' ? 'border-emerald-200 text-emerald-600' : statusInfo.tone === 'amber' ? 'border-amber-200 text-amber-600' : 'border-rose-200 text-rose-600'}`}>
+                                  <span className={`mr-2 inline-flex h-2 w-2 rounded-full ${statusInfo.tone === 'emerald' ? 'bg-emerald-500' : statusInfo.tone === 'amber' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+
+                              <h3 className="mb-1 text-xl font-black text-slate-800 leading-tight">{resource.name}</h3>
+                              <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{resourceTypeLabels[resource.type] || resource.type}</p>
+
+                              <div className="mb-6 space-y-2">
+                                <div className="inline-flex items-center gap-2 rounded-lg bg-white/40 p-2 text-xs font-bold text-slate-600">
+                                  <span className="text-[#008080]">⌂</span> {resource.location || 'Not set'}
+                                </div>
+                                <div className="inline-flex items-center gap-2 rounded-lg bg-white/40 p-2 text-xs font-bold text-slate-600">
+                                  <span className="text-[#F39200]">👥</span> {resource.capacity}
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-slate-500">{resource.availabilityWindows || 'No schedule set'}</p>
+                            </div>
+
+                            <div className="mt-4 flex gap-3 opacity-100 transition-all duration-300 md:opacity-0 md:translate-y-2 md:group-hover:opacity-100 md:group-hover:translate-y-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingResourceId(resource.id)
+                                  setEditResourceFormData({
+                                    name: resource.name || '',
+                                    type: resource.type || 'LAB',
+                                    capacity: resource.capacity || 1,
+                                    location: resource.location || '',
+                                    availabilityWindows: resource.availabilityWindows || '',
+                                    status: resource.status || 'AVAILABLE',
+                                  })
+                                  document.getElementById('resource-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                                }}
+                                className="flex-1 rounded-xl bg-[#008080] px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-teal-900/20"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteResource(resource)}
+                                className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white shadow-md transition hover:bg-slate-800 hover:-translate-y-0.5"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </article>
+                        )
+                      })
+                    )}
                   </div>
 
-                  <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleCreateResource}>
-                    <input name="name" value={resourceFormData.name} onChange={handleResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                    <input name="type" value={resourceFormData.type} onChange={handleResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                    <input name="capacity" type="number" min="1" value={resourceFormData.capacity} onChange={handleResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                    <input name="location" value={resourceFormData.location} onChange={handleResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                    <input name="availabilityWindows" value={resourceFormData.availabilityWindows} onChange={handleResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                    <input name="status" value={resourceFormData.status} onChange={handleResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                    <button type="submit" disabled={isSubmittingResource} className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60 md:col-span-2">
-                      {isSubmittingResource ? 'Creating...' : 'Create Resource'}
-                    </button>
-                  </form>
+                  <section id="resource-form" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900">{editingResourceId ? 'Edit Resource' : 'Add Resource'}</h3>
+                        <p className="text-sm text-slate-500">{editingResourceId ? 'Update the selected resource details below.' : 'Add a new resource to the inventory.'}</p>
+                      </div>
+                      {editingResourceId ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingResourceId(null)
+                            setEditResourceFormData({
+                              name: '',
+                              type: 'LAB',
+                              capacity: 1,
+                              location: '',
+                              availabilityWindows: '',
+                              status: 'AVAILABLE',
+                            })
+                          }}
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                        >
+                          Cancel Edit
+                        </button>
+                      ) : null}
+                    </div>
+                  </section>
+
+                  {editingResourceId ? (
+                    <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleUpdateResource}>
+                      <input name="name" value={editResourceFormData.name} onChange={handleEditResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="type" value={editResourceFormData.type} onChange={handleEditResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="capacity" type="number" min="1" value={editResourceFormData.capacity} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="location" value={editResourceFormData.location} onChange={handleEditResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="availabilityWindows" value={editResourceFormData.availabilityWindows} onChange={handleEditResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="status" value={editResourceFormData.status} onChange={handleEditResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <button type="submit" disabled={isSubmittingResource} className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60 md:col-span-2">
+                        {isSubmittingResource ? 'Saving...' : 'Save Resource Changes'}
+                      </button>
+                    </form>
+                  ) : (
+                    <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleCreateResource}>
+                      <input name="name" value={resourceFormData.name} onChange={handleResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="type" value={resourceFormData.type} onChange={handleResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="capacity" type="number" min="1" value={resourceFormData.capacity} onChange={handleResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="location" value={resourceFormData.location} onChange={handleResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="availabilityWindows" value={resourceFormData.availabilityWindows} onChange={handleResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <input name="status" value={resourceFormData.status} onChange={handleResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                      <button type="submit" disabled={isSubmittingResource} className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60 md:col-span-2">
+                        {isSubmittingResource ? 'Creating...' : 'Create Resource'}
+                      </button>
+                    </form>
+                  )}
 
                   <p className="text-xs text-slate-500">
-                    Tip: Use Edit or Delete to open the dedicated Manage Resource page for full update/delete actions.
+                    This view now starts with the available resources first, then gives admin actions for edit, delete, and add.
                   </p>
                 </div>
               ) : null}

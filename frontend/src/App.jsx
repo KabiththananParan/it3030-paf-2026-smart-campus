@@ -44,6 +44,14 @@ function App() {
         }
       />
       <Route
+        path="/admin/resources"
+        element={
+          <ProtectedRoute minRole={ROLES.ADMIN}>
+            <ResourceListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/resource/details/:id"
         element={
           <ProtectedRoute minRole={ROLES.USER}>
