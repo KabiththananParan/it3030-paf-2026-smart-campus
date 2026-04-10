@@ -15,6 +15,10 @@ import AddResourcePage from './pages/resources/AddResourcePage.jsx'
 import ManageResourcePage from './pages/resources/ManageResourcePage.jsx'
 import ResourceDetailsPage from './pages/resources/ResourceDetailsPage.jsx'
 import ResourceListPage from './pages/resources/ResourceListPage.jsx'
+import CreateTicketPage from './pages/tickets/CreateTicketPage.jsx'
+import MyTicketsPage from './pages/tickets/MyTicketsPage.jsx'
+import TicketDetailsPage from './pages/tickets/TicketDetailsPage.jsx'
+import TicketManagementPage from './pages/tickets/TicketManagementPage.jsx'
 import SignUp from './pages/SignUp.jsx'
 import TechnicianDashboard from './pages/TechnicianDashboard.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
@@ -144,6 +148,38 @@ function App() {
         element={
           <ProtectedRoute minRole={ROLES.ADMIN}>
             <ManageResourcePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/new"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <CreateTicketPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/my"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <MyTicketsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/:id"
+        element={
+          <ProtectedRoute minRole={ROLES.USER}>
+            <TicketDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets/manage"
+        element={
+          <ProtectedRoute minRole={ROLES.TECHNICIAN}>
+            <TicketManagementPage />
           </ProtectedRoute>
         }
       />

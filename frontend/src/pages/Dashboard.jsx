@@ -217,11 +217,19 @@ const Dashboard = () => {
           </div>
 
           <nav className="mt-8 space-y-2 text-sm font-semibold text-slate-600">
-            {['Dashboard', 'My Bookings', 'My Requests', 'Notifications'].map((section) => (
+            {['Dashboard', 'My Bookings', 'My Requests', 'Ticket', 'Notifications'].map((section) => (
               <button
                 key={section}
                 type="button"
-                onClick={() => setActiveSection(section)}
+                onClick={() => {
+                  if (section === 'Ticket') {
+                    setActiveSection('Ticket')
+                    navigate('/tickets/new')
+                    return
+                  }
+
+                  setActiveSection(section)
+                }}
                 className={`w-full rounded-xl px-4 py-3 text-left ${activeSection === section ? 'bg-slate-900 text-white' : 'hover:bg-slate-100'}`}
               >
                 {section}
