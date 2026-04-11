@@ -51,3 +51,21 @@ export const verifyPasswordReset = async ({ email, code, newPassword, confirmPas
 
   return parseResponse(response)
 }
+
+export const updateOwnProfile = async (payload) => {
+  const response = await fetch(`${AUTH_API_BASE}/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  return parseResponse(response)
+}
+
+export const deleteOwnProfile = async (email) => {
+  const response = await fetch(`${AUTH_API_BASE}/profile?email=${encodeURIComponent(email)}`, {
+    method: 'DELETE',
+  })
+
+  return parseResponse(response)
+}

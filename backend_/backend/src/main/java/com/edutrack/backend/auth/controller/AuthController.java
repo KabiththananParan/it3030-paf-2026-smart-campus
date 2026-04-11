@@ -9,6 +9,7 @@ import com.edutrack.backend.auth.dto.LoginRequest;
 import com.edutrack.backend.auth.dto.ResetPasswordRequest;
 import com.edutrack.backend.auth.dto.NotificationPreferencesResponse;
 import com.edutrack.backend.auth.dto.SignUpRequest;
+import com.edutrack.backend.auth.dto.UpdateOwnProfileRequest;
 import com.edutrack.backend.auth.dto.VerifySignUpRequest;
 import com.edutrack.backend.auth.dto.UpdateNotificationPreferencesRequest;
 import com.edutrack.backend.auth.service.AuthService;
@@ -92,6 +93,18 @@ public class AuthController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         authService.deleteUserByAdmin(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<AuthResponse> updateOwnProfile(
+            @Valid @RequestBody UpdateOwnProfileRequest request
+    ) {
+        return ResponseEntity.ok(authService.updateOwnProfile(request));
+    }
+
+    @DeleteMapping("/profile")
+    public ResponseEntity<AuthResponse> deleteOwnProfile(@RequestParam String email) {
+        return ResponseEntity.ok(authService.deleteOwnProfile(email));
     }
 
     @GetMapping("/notification-preferences")
