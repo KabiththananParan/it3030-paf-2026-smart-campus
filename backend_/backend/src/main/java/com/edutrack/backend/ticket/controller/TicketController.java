@@ -1,9 +1,12 @@
 package com.edutrack.backend.ticket.controller;
 
 import com.edutrack.backend.ticket.dto.AddResolutionNoteRequest;
+import com.edutrack.backend.ticket.dto.AddRequesterReplyRequest;
 import com.edutrack.backend.ticket.dto.AssignTicketRequest;
 import com.edutrack.backend.ticket.dto.CreateTicketRequest;
+import com.edutrack.backend.ticket.dto.TicketNotificationResponse;
 import com.edutrack.backend.ticket.dto.TicketResponse;
+import com.edutrack.backend.ticket.dto.UpdateTicketAdminFollowUpRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketRequest;
 import com.edutrack.backend.ticket.dto.UpdateTicketStatusRequest;
 import com.edutrack.backend.ticket.entity.TicketAttachment;
@@ -33,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/tickets")
 public class TicketController {
 
+    // Exposes the ticket endpoints used by both requester and admin flows.
     private final TicketService ticketService;
 
     public TicketController(TicketService ticketService) {
@@ -60,6 +64,21 @@ public class TicketController {
             @RequestHeader("X-User-Email") String actorEmail,
             @RequestHeader("X-User-Role") String actorRole) {
         return ResponseEntity.ok(ticketService.getAllTickets(actorEmail, actorRole));
+    }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<List<TicketNotificationResponse>> getNotifications(
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.getNotifications(actorEmail, actorRole));
+    }
+
+    @PatchMapping("/notifications/{notificationId}/read")
+    public ResponseEntity<TicketNotificationResponse> markNotificationAsRead(
+            @PathVariable Long notificationId,
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.markNotificationAsRead(notificationId, actorEmail, actorRole));
     }
 
     @GetMapping("/{id}")
@@ -114,6 +133,24 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.addResolutionNotes(id, request, actorEmail, actorRole));
     }
 
+    @PatchMapping("/{id}/requester-reply")
+    public ResponseEntity<TicketResponse> addRequesterReply(
+            @PathVariable Long id,
+            @Valid @RequestBody AddRequesterReplyRequest request,
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.addRequesterReply(id, request, actorEmail, actorRole));
+    }
+
+    @PatchMapping("/{id}/admin-follow-up")
+    public ResponseEntity<TicketResponse> updateAdminFollowUp(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTicketAdminFollowUpRequest request,
+            @RequestHeader("X-User-Email") String actorEmail,
+            @RequestHeader("X-User-Role") String actorRole) {
+        return ResponseEntity.ok(ticketService.updateAdminFollowUp(id, request, actorEmail, actorRole));
+    }
+
     @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TicketResponse> uploadAttachments(
             @PathVariable Long id,
@@ -129,6 +166,7 @@ public class TicketController {
         TicketAttachment attachment = ticketService.getAttachment(attachmentId);
         byte[] content = ticketService.readAttachmentBytes(attachmentId);
 
+        // Fall back to a safe binary type if the stored content type is missing or invalid.
         MediaType safeMediaType = MediaType.APPLICATION_OCTET_STREAM;
         try {
             if (attachment.getContentType() != null && !attachment.getContentType().isBlank()) {

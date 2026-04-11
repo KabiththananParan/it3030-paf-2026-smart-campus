@@ -18,6 +18,20 @@ const Login = () => {
     event.preventDefault()
     setSubmitMessage('')
 
+    const normalizedEmail = formData.email.trim().toLowerCase()
+    const password = formData.password
+    const emailPattern = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
+
+    if (!normalizedEmail || !emailPattern.test(normalizedEmail)) {
+      setSubmitMessage('Please enter a valid email address.')
+      return
+    }
+
+    if (!password.trim()) {
+      setSubmitMessage('Password is required.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -26,14 +40,19 @@ const Login = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.email.trim().toLowerCase(),
-          password: formData.password,
+          email: normalizedEmail,
+          password,
         }),
       })
 
       const data = await response.json()
       if (!response.ok) {
-        setSubmitMessage(data.message || 'Login failed. Please check your credentials.')
+        const validationErrors = data?.errors
+        const validationMessage = validationErrors
+          ? Object.values(validationErrors).find((value) => typeof value === 'string' && value.trim())
+          : null
+
+        setSubmitMessage(validationMessage || data.message || 'Login failed. Please check your credentials.')
         return
       }
 
