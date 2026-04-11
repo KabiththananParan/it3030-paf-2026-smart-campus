@@ -126,7 +126,7 @@ const MyTicketsPage = () => {
               Reset Filters
             </button>
           </div>
-
+              // Filter controls: search, status, campus
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <input
               value={search}
