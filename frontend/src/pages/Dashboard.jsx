@@ -5,6 +5,7 @@ import { getAuthUser } from '../auth/roles.js'
 import { API_BASE_URL } from '../config.js'
 import { getMyBookings } from '../api/bookingApi.js'
 import { getMyTickets, getTicketNotifications, markTicketNotificationAsRead } from '../api/ticketApi.js'
+import { updateOwnProfile, deleteOwnProfile } from '../api/authApi.js'
 
 const NOTIFICATION_API_URL = `${API_BASE_URL}/api/auth/notification-preferences`
 const notificationCategoryLabels = {
@@ -43,6 +44,15 @@ const Dashboard = () => {
   const [isNotificationLoading, setIsNotificationLoading] = useState(false)
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
   const [ticketNotificationError, setTicketNotificationError] = useState('')
+  const [profileForm, setProfileForm] = useState({
+    fullName: user?.fullName || '',
+    itNumber: user?.itNumber || user?.itNo || '',
+    email: user?.email || '',
+  })
+  const [profileStatus, setProfileStatus] = useState('')
+  const [isProfileSaving, setIsProfileSaving] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeletingProfile, setIsDeletingProfile] = useState(false)
 
   const bookingUpdatesEnabled = notificationPreferences.BOOKING_UPDATES !== false
   const pendingRequests = bookings.filter((booking) => booking.status === 'PENDING')
@@ -277,6 +287,82 @@ const Dashboard = () => {
     navigate('/login')
   }
 
+  const handleProfileFieldChange = (field, value) => {
+    setProfileStatus('')
+    setProfileForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const handleSaveProfile = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    const payload = {
+      currentEmail: user.email,
+      fullName: profileForm.fullName.trim(),
+      itNumber: profileForm.itNumber.trim().toUpperCase(),
+      email: profileForm.email.trim().toLowerCase(),
+    }
+
+    if (!payload.fullName || !payload.itNumber || !payload.email) {
+      setProfileStatus('All profile fields are required.')
+      return
+    }
+
+    setIsProfileSaving(true)
+    setProfileStatus('')
+    try {
+      const data = await updateOwnProfile(payload)
+      const nextUser = {
+        email: data.email,
+        itNumber: data.itNumber,
+        itNo: data.itNumber,
+        fullName: data.fullName,
+        role: data.role || user.role || 'USER',
+      }
+
+      localStorage.setItem('auth_user', JSON.stringify(nextUser))
+      localStorage.setItem('auth_it_number', data.itNumber)
+      setProfileForm({
+        fullName: data.fullName,
+        itNumber: data.itNumber,
+        email: data.email,
+      })
+      setProfileStatus('Profile updated successfully.')
+    } catch (error) {
+      setProfileStatus(error.message || 'Failed to update profile.')
+    } finally {
+      setIsProfileSaving(false)
+    }
+  }
+
+  const handleDeleteProfile = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') {
+      setProfileStatus('Type DELETE to confirm profile deletion.')
+      return
+    }
+
+    setIsDeletingProfile(true)
+    setProfileStatus('')
+    try {
+      await deleteOwnProfile(user.email)
+      localStorage.removeItem('auth_user')
+      localStorage.removeItem('auth_it_number')
+      navigate('/login', { replace: true })
+    } catch (error) {
+      setProfileStatus(error.message || 'Failed to delete profile.')
+    } finally {
+      setIsDeletingProfile(false)
+    }
+  }
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#f5efe8] p-2 sm:p-3 lg:p-4">
       <div className="grid h-full w-full gap-3 rounded-[2rem] bg-slate-50 p-3 shadow-2xl lg:grid-cols-[260px_minmax(0,1fr)_280px] lg:p-4">
@@ -297,7 +383,7 @@ const Dashboard = () => {
           </div>
 
           <nav className="mt-8 space-y-2 text-sm font-semibold text-slate-600">
-            {['Dashboard', 'My Bookings', 'My Requests', 'Ticket', 'Notifications'].map((section) => (
+            {['Dashboard', 'My Bookings', 'My Requests', 'Ticket', 'Notifications', 'Profile'].map((section) => (
               <button
                 key={section}
                 type="button"
@@ -466,6 +552,83 @@ const Dashboard = () => {
                   })}
                 </div>
               )}
+            </section>
+          ) : null}
+
+          {activeSection === 'Profile' ? (
+            <section className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <h2 className="text-lg font-black text-slate-900">My Profile</h2>
+              <p className="mt-1 text-sm text-slate-500">Update your account details or permanently delete your profile.</p>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <label className="text-sm font-semibold text-slate-700">
+                  Full Name
+                  <input
+                    type="text"
+                    value={profileForm.fullName}
+                    onChange={(event) => handleProfileFieldChange('fullName', event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  />
+                </label>
+
+                <label className="text-sm font-semibold text-slate-700">
+                  IT Number
+                  <input
+                    type="text"
+                    value={profileForm.itNumber}
+                    onChange={(event) => handleProfileFieldChange('itNumber', event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  />
+                </label>
+
+                <label className="text-sm font-semibold text-slate-700 md:col-span-2">
+                  Email
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(event) => handleProfileFieldChange('email', event.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  disabled={isProfileSaving || isDeletingProfile}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {isProfileSaving ? 'Saving...' : 'Save Profile'}
+                </button>
+              </div>
+
+              <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <p className="text-sm font-bold text-rose-900">Delete Profile</p>
+                <p className="mt-1 text-sm text-rose-800">This action is permanent. Type DELETE and confirm.</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(event) => {
+                      setProfileStatus('')
+                      setDeleteConfirmText(event.target.value)
+                    }}
+                    placeholder="Type DELETE"
+                    className="w-full max-w-xs rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDeleteProfile}
+                    disabled={isDeletingProfile || isProfileSaving}
+                    className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {isDeletingProfile ? 'Deleting...' : 'Delete Profile'}
+                  </button>
+                </div>
+              </div>
+
+              {profileStatus ? <p className="mt-4 text-sm text-slate-700">{profileStatus}</p> : null}
             </section>
           ) : null}
 

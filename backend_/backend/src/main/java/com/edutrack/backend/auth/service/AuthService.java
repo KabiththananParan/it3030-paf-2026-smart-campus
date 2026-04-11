@@ -8,6 +8,7 @@ import com.edutrack.backend.auth.dto.ForgotPasswordRequest;
 import com.edutrack.backend.auth.dto.LoginRequest;
 import com.edutrack.backend.auth.dto.ResetPasswordRequest;
 import com.edutrack.backend.auth.dto.SignUpRequest;
+import com.edutrack.backend.auth.dto.UpdateOwnProfileRequest;
 import com.edutrack.backend.auth.dto.VerifySignUpRequest;
 import com.edutrack.backend.auth.config.RoleNames;
 import com.edutrack.backend.auth.entity.UserAccount;
@@ -372,6 +373,47 @@ public class AuthService {
         UserAccount existingUser = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new AuthException("User not found"));
         userAccountRepository.delete(existingUser);
+    }
+
+    @Transactional
+    public AuthResponse updateOwnProfile(UpdateOwnProfileRequest request) {
+        String normalizedCurrentEmail = normalizeEmail(request.currentEmail());
+        UserAccount existingUser = userAccountRepository.findByEmailIgnoreCase(normalizedCurrentEmail)
+                .orElseThrow(() -> new AuthException("User not found"));
+
+        String normalizedEmail = normalizeEmail(request.email());
+        String normalizedItNumber = normalizeItNumber(request.itNumber());
+
+        if (userAccountRepository.existsByEmailIgnoreCaseAndIdNot(normalizedEmail, existingUser.getId())) {
+            throw new AuthException("An account with this email already exists");
+        }
+
+        if (userAccountRepository.existsByItNumberIgnoreCaseAndIdNot(normalizedItNumber, existingUser.getId())) {
+            throw new AuthException("An account with this IT number already exists");
+        }
+
+        existingUser.setFullName(request.fullName().trim());
+        existingUser.setEmail(normalizedEmail);
+        existingUser.setItNumber(normalizedItNumber);
+
+        UserAccount saved = userAccountRepository.save(existingUser);
+
+        return AuthResponse.success(
+                "Profile updated successfully",
+                saved.getEmail(),
+                saved.getItNumber(),
+                saved.getFullName(),
+                RoleNames.normalize(saved.getRole())
+        );
+    }
+
+    @Transactional
+    public AuthResponse deleteOwnProfile(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        UserAccount existingUser = userAccountRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElseThrow(() -> new AuthException("User not found"));
+        userAccountRepository.delete(existingUser);
+        return AuthResponse.messageOnly("Profile deleted successfully");
     }
 
     private String normalizeEmail(String email) {
