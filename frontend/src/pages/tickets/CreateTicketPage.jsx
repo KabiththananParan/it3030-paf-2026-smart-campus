@@ -48,6 +48,7 @@ const campusOptions = [
 const CreateTicketPage = () => {
   const navigate = useNavigate()
   const user = getAuthUser()
+  // Pre-fill the form with the logged-in user's basic details when available.
   const [form, setForm] = useState(() => ({
     ...initialForm,
     name: user?.fullName || '',
@@ -73,6 +74,7 @@ const CreateTicketPage = () => {
   }
 
   const validate = () => {
+    // Keep client-side checks simple before sending the ticket to the backend.
     if (!form.name.trim()) {
       return 'Name is required.'
     }
@@ -120,6 +122,7 @@ const CreateTicketPage = () => {
 
     setIsSubmitting(true)
     try {
+      // Convert the form fields into the ticket payload expected by the API.
       const normalizedMessage = form.message.trim()
       const description = [
         `Registration Number: ${form.registrationNumber.trim()}`,

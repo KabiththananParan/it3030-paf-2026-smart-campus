@@ -305,11 +305,11 @@ const TicketDetailsPage = () => {
   }
 
   if (isLoading) {
-    return <div className="min-h-screen bg-slate-100 p-8 text-center">Loading ticket...</div>
+    return <div className="min-h-screen bg-[#f5efe8] p-8 text-center">Loading ticket...</div>
   }
 
   if (error) {
-    return <div className="min-h-screen bg-slate-100 p-8 text-center text-rose-600">{error}</div>
+    return <div className="min-h-screen bg-[#f5efe8] p-8 text-center text-rose-600">{error}</div>
   }
 
   if (!ticket) {
@@ -323,6 +323,7 @@ const TicketDetailsPage = () => {
   const hasAdminFollowUp = Boolean(ticket.adminMessage || ticket.requestedDocuments)
   const isAwaitingReply = ticket.status === 'AWAITING_FOR_REPLY'
 
+  // pdf generation adapted from functionality 
   const handlePrintTicket = () => {
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
@@ -398,7 +399,7 @@ const TicketDetailsPage = () => {
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(18)
-    doc.text(`Request #${ticket.id}`, margin + 8, y + 12)
+    doc.text(`Service Request ${ticket.id}`, margin + 8, y + 12)
     doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
     doc.text(String(requestTypeLabel || '-'), margin + 8, y + 20)
@@ -459,15 +460,15 @@ const TicketDetailsPage = () => {
     doc.setTextColor(100, 116, 139)
     doc.setFontSize(9)
     doc.text(`Generated on ${new Date().toLocaleString()}`, margin, pageHeight - 8)
-
+// pdf file save as pdf
     const safeName = `ticket-${ticket.id}.pdf`
     doc.save(safeName)
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f5efe8] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
-        <nav className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-200/60">
+        <nav className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm shadow-slate-300/40">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -479,14 +480,14 @@ const TicketDetailsPage = () => {
             <button
               type="button"
               onClick={() => navigate('/tickets/my')}
-              className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-100"
+              className="rounded-2xl border border-[#c8dff1] bg-[#eaf5fc] px-4 py-2 text-sm font-semibold text-[#1f4968] transition hover:bg-[#dceef9]"
             >
               My Tickets
             </button>
             <button
               type="button"
               onClick={() => navigate('/tickets/new')}
-              className="rounded-2xl border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="rounded-2xl border border-[#0b1739] bg-[#0b1739] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#14224a]"
             >
               New Request
             </button>
@@ -494,13 +495,14 @@ const TicketDetailsPage = () => {
           <p className="text-sm font-semibold text-slate-600">Request Details</p>
         </nav>
 
-        <Link to="/tickets/my" className="inline-flex text-sm font-semibold text-cyan-700 hover:underline">Back to my tickets</Link>
+        <Link to="/tickets/my" className="inline-flex text-sm font-semibold text-[#1f4968] hover:underline">Back to my tickets</Link>
 
-        <div className="rounded-4xl bg-slate-950 p-6 text-white shadow-2xl shadow-slate-300/20">
+        <div className="rounded-4xl bg-[#0b1739] p-6 text-white shadow-2xl shadow-slate-300/20">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <TicketStatusBadge status={ticket.status} />
-              <h1 className="mt-3 text-3xl font-black">Request #{ticket.id}</h1>
+              <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-300">Service Request</p>
+              <h1 className="mt-1 text-3xl font-black">Request {ticket.id}</h1>
               <p className="mt-2 text-slate-300">{requestTypeLabel}</p>
             </div>
             <div className="space-y-3">
@@ -511,7 +513,7 @@ const TicketDetailsPage = () => {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={handlePrintTicket}
+                  onClick={handlePrintTicket}                                                                                                                                   //pdf generation button
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
                 >
                   Print
@@ -521,7 +523,7 @@ const TicketDetailsPage = () => {
                   <button
                     type="button"
                     onClick={handleStartEdit}
-                    className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-100"
+                      className="rounded-xl border border-[#b7d8ea] bg-[#eaf5fc] px-4 py-2 text-sm font-semibold text-[#1f4968] transition hover:bg-[#dceef9]"
                   >
                     Edit Ticket
                   </button>
@@ -541,13 +543,13 @@ const TicketDetailsPage = () => {
         </div>
 
         {actionMessage ? (
-          <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-medium text-cyan-800">
+          <div className="rounded-2xl border border-[#b7d8ea] bg-[#eaf5fc] px-4 py-3 text-sm font-medium text-[#1f4968]">
             {actionMessage}
           </div>
         ) : null}
 
         {isEditing && editForm ? (
-          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-300/40">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-slate-950">Edit Ticket</h2>
               <button
@@ -651,7 +653,7 @@ const TicketDetailsPage = () => {
                   type="button"
                   onClick={handleUploadEditAttachments}
                   disabled={isManagingAttachments}
-                  className="rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-2xl bg-[#0b1739] px-5 py-3 text-sm font-bold text-white hover:bg-[#14224a] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isManagingAttachments ? 'Please wait...' : 'Add attachment'}
                 </button>
@@ -687,7 +689,7 @@ const TicketDetailsPage = () => {
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-          <section className="space-y-6 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="space-y-6 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-300/40">
             <div>
               <h2 className="text-lg font-bold text-slate-950">Message</h2>
               <p className="mt-2 whitespace-pre-line text-sm text-slate-700">{metadata.message}</p>
@@ -695,13 +697,13 @@ const TicketDetailsPage = () => {
 
             <div>
               {(ticket.status === 'RESOLVED' || ticket.status === 'AWAITING_FOR_REPLY') && hasAdminFollowUp ? (
-                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <h3 className="text-sm font-bold text-amber-800">Admin follow-up request</h3>
+                <div className="mt-4 rounded-2xl border border-[#b7d8ea] bg-[#eaf5fc] p-4">
+                  <h3 className="text-sm font-bold text-[#1f4968]">Admin follow-up request</h3>
                   {ticket.adminMessage ? (
-                    <p className="mt-2 whitespace-pre-line text-sm text-amber-900">Message: {ticket.adminMessage}</p>
+                    <p className="mt-2 whitespace-pre-line text-sm text-[#153753]">Message: {ticket.adminMessage}</p>
                   ) : null}
                   {ticket.requestedDocuments ? (
-                    <p className="mt-2 whitespace-pre-line text-sm text-amber-900">Requested documents: {ticket.requestedDocuments}</p>
+                    <p className="mt-2 whitespace-pre-line text-sm text-[#153753]">Requested documents: {ticket.requestedDocuments}</p>
                   ) : null}
                 </div>
               ) : null}
@@ -729,7 +731,7 @@ const TicketDetailsPage = () => {
             </div>
           </section>
 
-          <aside className="space-y-6 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <aside className="space-y-6 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-300/40">
             <div>
               <h2 className="text-lg font-bold text-slate-950">Request details</h2>
               <dl className="mt-4 space-y-3 text-sm text-slate-700">
@@ -749,9 +751,9 @@ const TicketDetailsPage = () => {
           </aside>
         </div>
 
-        <section className="rounded-[1.75rem] border border-amber-300 bg-amber-50 p-6 shadow-sm">
-          <h2 className="text-lg font-black text-amber-900">Resolution Notes</h2>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">Sent by admin</p>
+        <section className="rounded-[1.75rem] border border-[#b7d8ea] bg-[#eaf5fc] p-6 shadow-sm shadow-slate-300/30">
+          <h2 className="text-lg font-black text-[#1f4968]">Resolution Notes</h2>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#2b6187]">Sent by admin</p>
 
           <div className="mt-3 rounded-2xl border border-amber-200 bg-white p-4 text-slate-800">
             <p className="whitespace-pre-line text-sm">{ticket.resolutionNotes || 'No resolution notes yet.'}</p>
@@ -759,10 +761,10 @@ const TicketDetailsPage = () => {
         </section>
 
         {isAwaitingReply ? (
-          <section className="rounded-[1.75rem] border border-cyan-300 bg-cyan-50 p-6 shadow-sm">
-            <h2 className="text-lg font-black text-cyan-900">Reply to Admin</h2>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-800">Your response</p>
-            <p className="mt-2 text-sm text-cyan-900">Write your reply and attach any requested documents before sending.</p>
+          <section className="rounded-[1.75rem] border border-[#b7d8ea] bg-[#eaf5fc] p-6 shadow-sm shadow-slate-300/30">
+            <h2 className="text-lg font-black text-[#1f4968]">Reply to Admin</h2>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#2b6187]">Your response</p>
+            <p className="mt-2 text-sm text-[#153753]">Write your reply and attach any requested documents before sending.</p>
 
             {isReplyEditing ? (
               <>
@@ -798,7 +800,7 @@ const TicketDetailsPage = () => {
                     type="button"
                     onClick={handleSendRequesterReply}
                     disabled={isSendingReply}
-                    className="rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-2xl bg-[#0b1739] px-5 py-3 text-sm font-bold text-white hover:bg-[#14224a] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSendingReply ? 'Sending...' : 'Send reply'}
                   </button>
@@ -818,7 +820,7 @@ const TicketDetailsPage = () => {
                   <button
                     type="button"
                     onClick={handleEditReply}
-                    className="rounded-2xl border border-cyan-300 bg-white px-5 py-3 text-sm font-bold text-cyan-900"
+                    className="rounded-2xl border border-[#b7d8ea] bg-white px-5 py-3 text-sm font-bold text-[#1f4968]"
                   >
                     Edit
                   </button>

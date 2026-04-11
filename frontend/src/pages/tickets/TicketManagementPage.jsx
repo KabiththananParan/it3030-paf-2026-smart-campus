@@ -4,6 +4,7 @@ import { getAllTickets, getTicketAttachmentUrl, updateTicketStatus, addResolutio
 import TicketStatusBadge from '../../components/tickets/TicketStatusBadge.jsx'
 
 const parseDescriptionMetadata = (description) => {
+  // Read extra ticket details that were stored inside the description text.
   const lines = String(description || '').split('\n')
   const map = {}
 
@@ -99,6 +100,7 @@ const TicketManagementPage = () => {
   const shouldShowFollowUpResolutionSection = selectedTicket?.status === 'AWAITING_FOR_REPLY' && isReplySubmitted
 
   useEffect(() => {
+    // Sync the form state whenever a different ticket is selected.
     if (!selectedTicket) {
       return
     }
@@ -142,6 +144,7 @@ const TicketManagementPage = () => {
     }
 
     try {
+      // Move the ticket into reply mode before saving notes that need requester action.
       if (isAwaitingReply && selectedTicket?.status !== 'AWAITING_FOR_REPLY') {
         await updateTicketStatus(selectedTicketId, {
           status: 'AWAITING_FOR_REPLY',

@@ -40,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TicketService {
 
+    // Allowed next states for the main ticket workflow.
     private static final List<TicketStatus> OPEN_TRANSITIONS = List.of(TicketStatus.IN_PROGRESS, TicketStatus.AWAITING_FOR_REPLY, TicketStatus.REJECTED);
     private static final List<TicketStatus> IN_PROGRESS_TRANSITIONS = List.of(TicketStatus.AWAITING_FOR_REPLY, TicketStatus.RESOLVED, TicketStatus.OPEN);
     private static final List<TicketStatus> AWAITING_REPLY_TRANSITIONS = List.of(TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.REJECTED);
@@ -71,6 +72,7 @@ public class TicketService {
     public TicketResponse createTicket(CreateTicketRequest request, String actorEmail, String actorName, String actorRole) {
         validateActor(actorEmail, actorName, actorRole);
 
+        // Create a fresh ticket record from the incoming request.
         Ticket ticket = new Ticket();
         applyRequestFields(
             ticket,
@@ -312,6 +314,7 @@ public class TicketService {
                     continue;
                 }
 
+                // Accept common support evidence formats only.
                 String contentType = file.getContentType();
                 String normalizedContentType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
                 boolean isImage = normalizedContentType.startsWith("image/");
@@ -386,6 +389,7 @@ public class TicketService {
             String preferredContactName,
             String preferredContactEmail,
             String preferredContactPhone) {
+        // Copy validated request values onto the ticket entity.
         ticket.setResourceId(resourceId);
         if (resourceId != null) {
             Resource resource = resourceRepository.findById(resourceId)
@@ -424,6 +428,7 @@ public class TicketService {
             return;
         }
 
+        // Keep ticket status changes inside the supported workflow.
         boolean valid = switch (currentStatus) {
             case OPEN -> OPEN_TRANSITIONS.contains(nextStatus);
             case IN_PROGRESS -> IN_PROGRESS_TRANSITIONS.contains(nextStatus);

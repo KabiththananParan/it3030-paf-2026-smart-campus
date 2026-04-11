@@ -36,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/tickets")
 public class TicketController {
 
+    // Exposes the ticket endpoints used by both requester and admin flows.
     private final TicketService ticketService;
 
     public TicketController(TicketService ticketService) {
@@ -165,6 +166,7 @@ public class TicketController {
         TicketAttachment attachment = ticketService.getAttachment(attachmentId);
         byte[] content = ticketService.readAttachmentBytes(attachmentId);
 
+        // Fall back to a safe binary type if the stored content type is missing or invalid.
         MediaType safeMediaType = MediaType.APPLICATION_OCTET_STREAM;
         try {
             if (attachment.getContentType() != null && !attachment.getContentType().isBlank()) {
