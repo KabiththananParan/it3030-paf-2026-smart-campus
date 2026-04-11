@@ -73,6 +73,21 @@ public class Ticket {
     @Column(length = 2000)
     private String resolutionNotes;
 
+    @Column(nullable = false)
+    private boolean requesterActionRequired;
+
+    @Column(length = 2000)
+    private String requesterReply;
+
+    @Column(length = 1000)
+    private String requestedDocuments;
+
+    @Column(length = 2000)
+    private String adminMessage;
+
+    @Column(length = 2000)
+    private String relatedDetails;
+
     @Column(length = 150)
     private String createdByEmail;
 

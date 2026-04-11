@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react'
 import logo from '../assets/edutrack.png'
 import { getAuthUser } from '../auth/roles.js'
 import { API_BASE_URL } from '../config.js'
+import { getTicketNotifications, markTicketNotificationAsRead } from '../api/ticketApi.js'
 
-const adminSections = ['Users', 'Resources', 'Bookings', 'Notifications']
+const adminSections = ['Users', 'Resources', 'Bookings', 'Tickets', 'Notifications']
 const USERS_API_URL = `${API_BASE_URL}/api/auth/admin/users`
 const NOTIFICATION_API_URL = `${API_BASE_URL}/api/auth/notification-preferences`
 const RESOURCES_API_URL = `${API_BASE_URL}/api/resources`
@@ -15,48 +16,6 @@ const notificationCategoryLabels = {
   SYSTEM_ANNOUNCEMENTS: 'System Announcements',
   SECURITY_NOTICES: 'Security Notices',
 }
-
-const resourceTypeLabels = {
-  LAB: 'Lab',
-  LECTURE_HALL: 'Lecture Hall',
-  MEETING_ROOM: 'Meeting Room',
-  EQUIPMENT: 'Equipment',
-}
-
-const initialAdminNotifications = [
-  { id: 1, title: 'New booking request', detail: 'Computer Lab B needs approval.', time: '5 min ago', read: false },
-  { id: 2, title: 'Maintenance alert', detail: 'Projector fault reported in Hall A3.', time: '20 min ago', read: false },
-  { id: 3, title: 'System announcement', detail: 'Semester schedule update published.', time: '1 hour ago', read: true },
-]
-
-const getAdminNotificationReadKey = (email) => `admin_notification_read_ids:${(email || 'admin').toLowerCase()}`
-
-const getStoredAdminReadIds = (email) => {
-  try {
-    const raw = localStorage.getItem(getAdminNotificationReadKey(email))
-    if (!raw) {
-      return new Set()
-    }
-
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return new Set()
-    }
-
-    return new Set(parsed.map((id) => String(id)))
-  } catch {
-    return new Set()
-  }
-}
-
-const applyStoredReadIds = (notifications, email) => {
-  const storedReadIds = getStoredAdminReadIds(email)
-  return notifications.map((notification) => ({
-    ...notification,
-    read: notification.read || storedReadIds.has(String(notification.id)),
-  }))
-}
-
 
 // Admin Dashboard
 
@@ -84,7 +43,7 @@ const AdminDashboard = () => {
     itNumber: '',
     email: '',
     password: '',
-    role: 'TECHNICIAN',
+    role: 'USER',
   })
   const [statusMessage, setStatusMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -93,18 +52,13 @@ const AdminDashboard = () => {
   const [isNotificationLoading, setIsNotificationLoading] = useState(false)
   const [isNotificationSaving, setIsNotificationSaving] = useState(false)
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false)
-  const [adminNotifications, setAdminNotifications] = useState(() => applyStoredReadIds(initialAdminNotifications, user?.email))
+  const [adminNotifications, setAdminNotifications] = useState([])
+  const [ticketNotificationError, setTicketNotificationError] = useState('')
+  const [isTicketNotificationLoading, setIsTicketNotificationLoading] = useState(false)
   const [resources, setResources] = useState([])
   const [isResourcesLoading, setIsResourcesLoading] = useState(false)
   const [resourcesStatus, setResourcesStatus] = useState('')
   const [resourceCrudStatus, setResourceCrudStatus] = useState('')
-  const [resourceFilters, setResourceFilters] = useState({
-    name: '',
-    type: '',
-    status: '',
-    location: '',
-    minCapacity: '',
-  })
   const [resourceFormData, setResourceFormData] = useState({
     name: '',
     type: 'LAB',
@@ -129,57 +83,6 @@ const AdminDashboard = () => {
   const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL')
 
   const unreadNotificationCount = adminNotifications.filter((notification) => !notification.read).length
-
-  const getResourceStatusLabel = (resource) => {
-    const status = (resource?.status || '').toUpperCase()
-    if (status === 'OUT_OF_SERVICE') {
-      return { label: 'Out of Service', tone: 'rose' }
-    }
-
-    if (status === 'BUSY') {
-      return { label: 'Busy', tone: 'amber' }
-    }
-
-    return { label: 'Available', tone: 'emerald' }
-  }
-
-  const getResourceDisplayStatus = (resource) => {
-    const status = (resource?.status || '').toUpperCase()
-    if (status === 'OUT_OF_SERVICE' || status === 'AVAILABLE' || status === 'BUSY') {
-      return status
-    }
-
-    return 'AVAILABLE'
-  }
-
-  const filteredResources = resources.filter((resource) => {
-    const displayStatus = getResourceDisplayStatus(resource)
-    return (
-      (resource.name || '').toLowerCase().includes(resourceFilters.name.toLowerCase()) &&
-      (resource.type || '').toLowerCase().includes(resourceFilters.type.toLowerCase()) &&
-      (resource.location || '').toLowerCase().includes(resourceFilters.location.toLowerCase()) &&
-      displayStatus.toLowerCase().includes(resourceFilters.status.toLowerCase()) &&
-      (resourceFilters.minCapacity === '' || Number(resource.capacity || 0) >= Number(resourceFilters.minCapacity))
-    )
-  })
-
-  const handleResourceFilterChange = (event) => {
-    const { name, value } = event.target
-    setResourceFilters((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-  }
-
-  const handleClearResourceFilters = () => {
-    setResourceFilters({
-      name: '',
-      type: '',
-      status: '',
-      location: '',
-      minCapacity: '',
-    })
-  }
 
   const fetchUsers = async () => {
     setIsUsersLoading(true)
@@ -266,6 +169,23 @@ const AdminDashboard = () => {
     }
   }
 
+  const fetchAdminTicketNotifications = async () => {
+    if (!user?.email) {
+      return
+    }
+
+    setIsTicketNotificationLoading(true)
+    setTicketNotificationError('')
+    try {
+      const data = await getTicketNotifications()
+      setAdminNotifications(Array.isArray(data) ? data : [])
+    } catch (error) {
+      setTicketNotificationError(error.message || 'Failed to load notifications.')
+    } finally {
+      setIsTicketNotificationLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (activeSection === 'Users') {
       fetchUsers()
@@ -291,16 +211,10 @@ const AdminDashboard = () => {
   }, [activeSection, user?.email])
 
   useEffect(() => {
-    if (!user?.email) {
-      return
+    if (user?.email) {
+      void fetchAdminTicketNotifications()
     }
-
-    const readIds = adminNotifications
-      .filter((notification) => notification.read)
-      .map((notification) => String(notification.id))
-
-    localStorage.setItem(getAdminNotificationReadKey(user.email), JSON.stringify(readIds))
-  }, [adminNotifications, user?.email])
+  }, [user?.email])
 
   if (!user) {
     return <Navigate to="/login" replace />
@@ -308,10 +222,6 @@ const AdminDashboard = () => {
 
   if (user.role !== 'ADMIN') {
     return <Navigate to="/dashboard" replace />
-  }
-
-  if (resolvedInitialSection === 'Resources') {
-    return <Navigate to="/admin/resources" replace />
   }
 
   const handleLogout = () => {
@@ -371,7 +281,7 @@ const AdminDashboard = () => {
         itNumber: '',
         email: '',
         password: '',
-        role: 'TECHNICIAN',
+        role: 'USER',
       })
       fetchUsers()
     } catch {
@@ -523,16 +433,31 @@ const AdminDashboard = () => {
     }
   }
 
-  const handleMarkAllNotificationsRead = () => {
-    setAdminNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
+  const handleMarkAllNotificationsRead = async () => {
+    const unread = adminNotifications.filter((notification) => !notification.read)
+    if (unread.length === 0) {
+      return
+    }
+
+    try {
+      await Promise.all(unread.map((notification) => markTicketNotificationAsRead(notification.id)))
+      setAdminNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })))
+    } catch {
+      setTicketNotificationError('Failed to mark all notifications as read.')
+    }
   }
 
-  const handleReadNotificationMessage = (notificationId) => {
-    setAdminNotifications((prev) => prev.map((notification) => (
-      notification.id === notificationId
-        ? { ...notification, read: true }
-        : notification
-    )))
+  const handleReadNotificationMessage = async (notificationId) => {
+    try {
+      await markTicketNotificationAsRead(notificationId)
+      setAdminNotifications((prev) => prev.map((notification) => (
+        notification.id === notificationId
+          ? { ...notification, read: true }
+          : notification
+      )))
+    } catch {
+      setTicketNotificationError('Failed to mark notification as read.')
+    }
   }
 
   const handleResourceInputChange = (event) => {
@@ -669,7 +594,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#f5efe8] p-3 sm:p-5">
-      <div className="mx-auto max-w-7xl rounded-[2rem] border border-slate-200 bg-slate-50 p-5 shadow-xl sm:p-7">
+      <div className="mx-auto max-w-7xl rounded-4xl border border-slate-200 bg-slate-50 p-5 shadow-xl sm:p-7">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="flex items-center gap-3">
             <img src={logo} alt="EduTrack logo" className="h-10 w-10 rounded-xl object-cover" />
@@ -723,12 +648,17 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="mt-4 space-y-3">
+                  {ticketNotificationError ? <p className="text-sm text-rose-700">{ticketNotificationError}</p> : null}
+                  {isTicketNotificationLoading ? <p className="text-sm text-slate-500">Loading notifications...</p> : null}
+                  {!isTicketNotificationLoading && adminNotifications.length === 0 ? (
+                    <p className="text-sm text-slate-500">No notifications yet.</p>
+                  ) : null}
                   {adminNotifications.map((notification) => (
                     <div key={notification.id} className={`rounded-xl border p-3 ${notification.read ? 'border-slate-200 bg-slate-50' : 'border-cyan-200 bg-cyan-50'}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className={`font-bold ${notification.read ? 'text-slate-900' : 'text-cyan-900'}`}>{notification.title}</p>
-                          <p className="mt-1 text-sm text-slate-600">{notification.detail}</p>
+                          <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
                           <button
                             type="button"
                             onClick={() => handleReadNotificationMessage(notification.id)}
@@ -738,7 +668,7 @@ const AdminDashboard = () => {
                             {notification.read ? 'Read' : 'Read message'}
                           </button>
                         </div>
-                        <span className="whitespace-nowrap text-xs font-semibold text-slate-400">{notification.time}</span>
+                        <span className="whitespace-nowrap text-xs font-semibold text-slate-400">{new Date(notification.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
@@ -758,14 +688,7 @@ const AdminDashboard = () => {
                   <button
                     key={section}
                     type="button"
-                    onClick={() => {
-                      if (section === 'Resources') {
-                        navigate('/admin/resources')
-                        return
-                      }
-
-                      setActiveSection(section)
-                    }}
+                    onClick={() => setActiveSection(section)}
                     className={`w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
                       isActive
                         ? 'bg-slate-900 text-white'
@@ -890,7 +813,6 @@ const AdminDashboard = () => {
                       >
                         <option value="STUDENT">STUDENT</option>
                         <option value="USER">USER</option>
-                        <option value="TECHNICIAN">TECHNICIAN</option>
                         <option value="MANAGER">MANAGER</option>
                         <option value="ADMIN">ADMIN</option>
                       </select>
@@ -917,9 +839,9 @@ const AdminDashboard = () => {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h2 className="text-xl font-black text-slate-900">Create User Account</h2>
-                        <p className="text-sm text-slate-500">Admin can create ADMIN, MANAGER, TECHNICIAN, USER, and STUDENT accounts.</p>
+                        <p className="text-sm text-slate-500">Admin can create ADMIN, MANAGER, USER, and STUDENT accounts.</p>
                       </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">STUDENT uses IT number, TECHNICIAN gets ITTECH###</span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">STUDENT uses IT number for account mapping.</span>
                     </div>
 
                     <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleCreateAccount}>
@@ -935,7 +857,7 @@ const AdminDashboard = () => {
                         name="itNumber"
                         value={formData.itNumber}
                         onChange={handleChange}
-                        placeholder={isStudentCreate ? 'IT23608054' : 'Optional for technician (auto ITTECH001)'}
+                        placeholder={isStudentCreate ? 'IT23608054' : 'IT Number'}
                         maxLength={10}
                         className="rounded-xl border border-slate-200 px-4 py-3 uppercase outline-none focus:ring-4 focus:ring-violet-100"
                         required={isStudentCreate}
@@ -964,7 +886,6 @@ const AdminDashboard = () => {
                         onChange={handleChange}
                         className="rounded-xl border border-slate-200 px-4 py-3 outline-none focus:ring-4 focus:ring-violet-100"
                       >
-                        <option value="TECHNICIAN">TECHNICIAN</option>
                         <option value="MANAGER">MANAGER</option>
                         <option value="ADMIN">ADMIN</option>
                         <option value="USER">USER</option>
@@ -1022,110 +943,23 @@ const AdminDashboard = () => {
               ) : null}
 
               {activeSection === 'Resources' ? (
-                <div className="mt-5 space-y-6">
-                  <div className="rounded-[2rem] bg-[#003366] px-6 py-8 text-white shadow-lg shadow-slate-200/60">
-                    <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <h3 className="text-4xl font-black tracking-tight">EduTrack <span className="text-[#008080]">Inventory</span></h3>
-                        <p className="mt-2 text-sm font-medium tracking-wide text-blue-100/70">SLIIT RESOURCE MANAGEMENT SYSTEM</p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingResourceId(null)
-                            setEditResourceFormData({
-                              name: '',
-                              type: 'LAB',
-                              capacity: 1,
-                              location: '',
-                              availabilityWindows: '',
-                              status: 'AVAILABLE',
-                            })
-                            document.getElementById('resource-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                          }}
-                          className="rounded-xl bg-[#F39200] px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110"
-                        >
-                          Add New Resource
-                        </button>
-                        <button
-                          type="button"
-                          onClick={fetchResources}
-                          className="rounded-xl border border-white/20 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
-                        >
-                          Refresh Resources
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[1.6rem] border border-slate-200 bg-white px-5 py-4 shadow-sm">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                      <div className="space-y-1">
-                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</label>
-                        <input
-                          name="name"
-                          value={resourceFilters.name}
-                          onChange={handleResourceFilterChange}
-                          placeholder="Search..."
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
-                        <select
-                          name="type"
-                          value={resourceFilters.type}
-                          onChange={handleResourceFilterChange}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
-                        >
-                          <option value="">All</option>
-                          <option value="LAB">Lab</option>
-                          <option value="LECTURE_HALL">Lecture Hall</option>
-                          <option value="MEETING_ROOM">Meeting Room</option>
-                          <option value="EQUIPMENT">Equipment</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</label>
-                        <select
-                          name="status"
-                          value={resourceFilters.status}
-                          onChange={handleResourceFilterChange}
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
-                        >
-                          <option value="">All</option>
-                          <option value="AVAILABLE">Available</option>
-                          <option value="BUSY">Busy</option>
-                          <option value="OUT_OF_SERVICE">Out of Service</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Location</label>
-                        <input
-                          name="location"
-                          value={resourceFilters.location}
-                          onChange={handleResourceFilterChange}
-                          placeholder="Block..."
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Min Capacity</label>
-                        <input
-                          name="minCapacity"
-                          type="number"
-                          min="1"
-                          value={resourceFilters.minCapacity}
-                          onChange={handleResourceFilterChange}
-                          placeholder="Qty"
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-4 focus:ring-cyan-100"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <button type="button" onClick={handleClearResourceFilters} className="text-sm font-bold text-slate-500 hover:text-rose-500">
-                        Reset
+                <div className="mt-5 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-slate-500">Create, update, and remove campus resources.</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/resources/add')}
+                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                      >
+                        Open Add Resource
+                      </button>
+                      <button
+                        type="button"
+                        onClick={fetchResources}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                      >
+                        Refresh Resources
                       </button>
                     </div>
                   </div>
@@ -1133,134 +967,74 @@ const AdminDashboard = () => {
                   {resourcesStatus ? <p className="text-sm text-rose-600">{resourcesStatus}</p> : null}
                   {resourceCrudStatus ? <p className="text-sm text-slate-700">{resourceCrudStatus}</p> : null}
 
-                  <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                    {isResourcesLoading ? (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-500 md:col-span-2 lg:col-span-3">Loading resources...</div>
-                    ) : filteredResources.length === 0 ? (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-500 md:col-span-2 lg:col-span-3">No resources found.</div>
-                    ) : (
-                      filteredResources.map((resource) => {
-                        const statusInfo = getResourceStatusLabel(resource)
-                        return (
-                          <article
-                            key={resource.id}
-                            className={`group flex h-full flex-col justify-between rounded-[2rem] border ${resource.type === 'LAB' ? 'bg-blue-50/70 border-blue-200 text-blue-700 border-t-4 border-t-blue-500' : resource.type === 'EQUIPMENT' ? 'bg-orange-50/70 border-orange-200 text-orange-700 border-t-4 border-t-orange-500' : resource.type === 'LECTURE_HALL' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-700 border-t-4 border-t-emerald-500' : 'bg-slate-50 border-slate-200 text-slate-700 border-t-4 border-t-slate-400'} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
-                          >
-                            <div>
-                              <div className="mb-6 flex items-start justify-between gap-4">
-                                <div className="rounded-xl bg-white/80 p-3 shadow-sm text-slate-700">
-                                  <span className="text-lg font-black">{resource.type === 'LAB' ? '⌘' : resource.type === 'EQUIPMENT' ? '⚙' : '▣'}</span>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="min-w-full bg-white text-sm">
+                      <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+                        <tr>
+                          <th className="px-3 py-2">Name</th>
+                          <th className="px-3 py-2">Type</th>
+                          <th className="px-3 py-2">Capacity</th>
+                          <th className="px-3 py-2">Location</th>
+                          <th className="px-3 py-2">Status</th>
+                          <th className="px-3 py-2">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {isResourcesLoading ? (
+                          <tr>
+                            <td colSpan="6" className="px-3 py-5 text-center text-slate-500">Loading resources...</td>
+                          </tr>
+                        ) : resources.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="px-3 py-5 text-center text-slate-500">No resources found.</td>
+                          </tr>
+                        ) : (
+                          resources.map((resource) => (
+                            <tr key={resource.id} className="border-t border-slate-100">
+                              <td className="px-3 py-2 text-slate-800">{resource.name}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.type}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.capacity}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.location}</td>
+                              <td className="px-3 py-2 text-slate-700">{resource.status}</td>
+                              <td className="px-3 py-2">
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/admin/resources/manage/${resource.id}`)}
+                                    className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/admin/resources/manage/${resource.id}`)}
+                                    className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                                  >
+                                    Delete
+                                  </button>
                                 </div>
-                                <span className={`inline-flex items-center rounded-full border bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm ${statusInfo.tone === 'emerald' ? 'border-emerald-200 text-emerald-600' : statusInfo.tone === 'amber' ? 'border-amber-200 text-amber-600' : 'border-rose-200 text-rose-600'}`}>
-                                  <span className={`mr-2 inline-flex h-2 w-2 rounded-full ${statusInfo.tone === 'emerald' ? 'bg-emerald-500' : statusInfo.tone === 'amber' ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                                  {statusInfo.label}
-                                </span>
-                              </div>
-
-                              <h3 className="mb-1 text-xl font-black text-slate-800 leading-tight">{resource.name}</h3>
-                              <p className="mb-6 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{resourceTypeLabels[resource.type] || resource.type}</p>
-
-                              <div className="mb-6 space-y-2">
-                                <div className="inline-flex items-center gap-2 rounded-lg bg-white/40 p-2 text-xs font-bold text-slate-600">
-                                  <span className="text-[#008080]">⌂</span> {resource.location || 'Not set'}
-                                </div>
-                                <div className="inline-flex items-center gap-2 rounded-lg bg-white/40 p-2 text-xs font-bold text-slate-600">
-                                  <span className="text-[#F39200]">👥</span> {resource.capacity}
-                                </div>
-                              </div>
-
-                              <p className="text-xs text-slate-500">{resource.availabilityWindows || 'No schedule set'}</p>
-                            </div>
-
-                            <div className="mt-4 flex gap-3 opacity-100 transition-all duration-300 md:opacity-0 md:translate-y-2 md:group-hover:opacity-100 md:group-hover:translate-y-0">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingResourceId(resource.id)
-                                  setEditResourceFormData({
-                                    name: resource.name || '',
-                                    type: resource.type || 'LAB',
-                                    capacity: resource.capacity || 1,
-                                    location: resource.location || '',
-                                    availabilityWindows: resource.availabilityWindows || '',
-                                    status: resource.status || 'AVAILABLE',
-                                  })
-                                  document.getElementById('resource-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                                }}
-                                className="flex-1 rounded-xl bg-[#008080] px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-teal-900/20"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteResource(resource)}
-                                className="flex-1 rounded-xl bg-slate-900 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-widest text-white shadow-md transition hover:bg-slate-800 hover:-translate-y-0.5"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </article>
-                        )
-                      })
-                    )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
 
-                  <section id="resource-form" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-xl font-black text-slate-900">{editingResourceId ? 'Edit Resource' : 'Add Resource'}</h3>
-                        <p className="text-sm text-slate-500">{editingResourceId ? 'Update the selected resource details below.' : 'Add a new resource to the inventory.'}</p>
-                      </div>
-                      {editingResourceId ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingResourceId(null)
-                            setEditResourceFormData({
-                              name: '',
-                              type: 'LAB',
-                              capacity: 1,
-                              location: '',
-                              availabilityWindows: '',
-                              status: 'AVAILABLE',
-                            })
-                          }}
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                        >
-                          Cancel Edit
-                        </button>
-                      ) : null}
-                    </div>
-                  </section>
-
-                  {editingResourceId ? (
-                    <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleUpdateResource}>
-                      <input name="name" value={editResourceFormData.name} onChange={handleEditResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="type" value={editResourceFormData.type} onChange={handleEditResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="capacity" type="number" min="1" value={editResourceFormData.capacity} onChange={handleEditResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="location" value={editResourceFormData.location} onChange={handleEditResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="availabilityWindows" value={editResourceFormData.availabilityWindows} onChange={handleEditResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="status" value={editResourceFormData.status} onChange={handleEditResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <button type="submit" disabled={isSubmittingResource} className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60 md:col-span-2">
-                        {isSubmittingResource ? 'Saving...' : 'Save Resource Changes'}
-                      </button>
-                    </form>
-                  ) : (
-                    <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleCreateResource}>
-                      <input name="name" value={resourceFormData.name} onChange={handleResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="type" value={resourceFormData.type} onChange={handleResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="capacity" type="number" min="1" value={resourceFormData.capacity} onChange={handleResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="location" value={resourceFormData.location} onChange={handleResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="availabilityWindows" value={resourceFormData.availabilityWindows} onChange={handleResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <input name="status" value={resourceFormData.status} onChange={handleResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
-                      <button type="submit" disabled={isSubmittingResource} className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60 md:col-span-2">
-                        {isSubmittingResource ? 'Creating...' : 'Create Resource'}
-                      </button>
-                    </form>
-                  )}
+                  <form className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" onSubmit={handleCreateResource}>
+                    <input name="name" value={resourceFormData.name} onChange={handleResourceInputChange} placeholder="Resource name" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="type" value={resourceFormData.type} onChange={handleResourceInputChange} placeholder="LAB / HALL" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="capacity" type="number" min="1" value={resourceFormData.capacity} onChange={handleResourceInputChange} className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="location" value={resourceFormData.location} onChange={handleResourceInputChange} placeholder="Location" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="availabilityWindows" value={resourceFormData.availabilityWindows} onChange={handleResourceInputChange} placeholder="08:00-18:00" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <input name="status" value={resourceFormData.status} onChange={handleResourceInputChange} placeholder="AVAILABLE" className="rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none" />
+                    <button type="submit" disabled={isSubmittingResource} className="rounded-xl bg-slate-900 px-4 py-3 font-bold text-white disabled:opacity-60 md:col-span-2">
+                      {isSubmittingResource ? 'Creating...' : 'Create Resource'}
+                    </button>
+                  </form>
 
                   <p className="text-xs text-slate-500">
-                    This view now starts with the available resources first, then gives admin actions for edit, delete, and add.
+                    Tip: Use Edit or Delete to open the dedicated Manage Resource page for full update/delete actions.
                   </p>
                 </div>
               ) : null}
@@ -1327,6 +1101,45 @@ const AdminDashboard = () => {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              ) : null}
+
+              {activeSection === 'Tickets' ? (
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-3xl border border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 p-6 text-white shadow-lg">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">Ticket Command Center</p>
+                    <h3 className="mt-3 text-3xl font-black">Manage maintenance and incident requests</h3>
+                    <p className="mt-3 max-w-3xl text-sm text-slate-200">
+                      Route incoming issues, update status workflows, and close requests with resolution notes from one focused admin workspace.
+                    </p>
+                    <div className="mt-5">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/tickets/manage')}
+                        className="rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-900 hover:bg-slate-100"
+                      >
+                        Open Ticket Management
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Intake</p>
+                      <h4 className="mt-2 text-lg font-black text-slate-900">Review new tickets</h4>
+                      <p className="mt-2 text-sm text-slate-600">See all submitted requests and prioritize work by urgency and impact.</p>
+                    </article>
+                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Execution</p>
+                      <h4 className="mt-2 text-lg font-black text-slate-900">Update workflows</h4>
+                      <p className="mt-2 text-sm text-slate-600">Move tickets through OPEN, IN PROGRESS, AWAITING FOR REPLY, and RESOLVED states.</p>
+                    </article>
+                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Closure</p>
+                      <h4 className="mt-2 text-lg font-black text-slate-900">Document resolution</h4>
+                      <p className="mt-2 text-sm text-slate-600">Capture final notes and requester replies to maintain an auditable service history.</p>
+                    </article>
                   </div>
                 </div>
               ) : null}
