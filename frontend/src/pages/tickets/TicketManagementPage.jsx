@@ -24,6 +24,10 @@ const parseDescriptionMetadata = (description) => {
   return {
     requestType: map['request / inquiry type'] || '',
     registrationNumber: map['registration number'] || '-',
+    facultySchool: map['faculty / school'] || '-',
+    department: map.department || '-',
+    campusCenter: map['campus / center'] || '-',
+    message: map.message || '',
   }
 }
 
@@ -88,6 +92,10 @@ const TicketManagementPage = () => {
   }, [])
 
   const selectedTicket = useMemo(() => tickets.find((ticket) => ticket.id === selectedTicketId) || null, [tickets, selectedTicketId])
+  const selectedMetadata = useMemo(
+    () => parseDescriptionMetadata(selectedTicket?.description),
+    [selectedTicket?.description],
+  )
 
   const refreshTicketList = async () => {
     const data = await getAllTickets()
@@ -271,12 +279,19 @@ const TicketManagementPage = () => {
                   <TicketStatusBadge status={selectedTicket.status} />
                   <h2 className="mt-3 text-2xl font-black text-slate-950">Ticket #{selectedTicket.id}</h2>
                   <p className="mt-1 text-sm font-semibold text-slate-700">Request / Inquiry type: {getRequestTitle(selectedTicket)}</p>
-                  <p className="mt-1 text-sm text-slate-600">Registration Number: {parseDescriptionMetadata(selectedTicket.description).registrationNumber}</p>
+                  <p className="mt-1 text-sm text-slate-600">Registration Number: {selectedMetadata.registrationNumber}</p>
                   <p className="text-sm text-slate-600">Email: {selectedTicket.preferredContactEmail || '-'}</p>
-                  <p className="mt-1 text-sm text-slate-600">{selectedTicket.description}</p>
+                  <p className="mt-1 text-sm text-slate-600">Campus / Center: {selectedMetadata.campusCenter !== '-' ? selectedMetadata.campusCenter : (selectedTicket.location || '-')}</p>
                 </div>
                 <div className="text-right text-sm text-slate-500">Assigned: {selectedTicket.assignedTechnicianName || 'Unassigned'}</div>
               </div>
+
+              {selectedMetadata.message ? (
+                <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Center Message</p>
+                  <p className="mt-2 whitespace-pre-line text-sm font-semibold text-amber-900">{selectedMetadata.message}</p>
+                </div>
+              ) : null}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block text-sm font-semibold text-slate-700">
